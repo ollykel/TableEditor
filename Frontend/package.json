@@ -1,0 +1,12 @@
+{
+  "name": "TableEditor",
+  "version": "1.0.0",
+  "description": "Frontend for the table editor",
+  "main": "index.js",
+  "repository": "git@github.com:ollykel/TableEditor.git",
+  "author": "Oliver A. Kelton <oakelton@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "vite": "^7.0.4"
+  }
+}
