@@ -1,20 +1,46 @@
-# ---- Build Stage ----
-FROM rust:1.88 as builder
+# ---- Stage 1: Dependency planner (cargo-chef) ----
+FROM rust:1.88 as planner
 
-# Create app directory
 WORKDIR /app
 
-# Fetch dependencies
+# Install cargo-chef
+RUN cargo install cargo-chef
+
+# Copy manifests
 COPY Cargo.toml Cargo.lock ./
-RUN cargo fetch
 
-# Copy working code
-COPY src ./src
+# Generate dependency build plan
+RUN cargo chef prepare --recipe-path recipe.json
 
-# Pre-cache dependencies
+# ---- Stage 2: Dependency builder ----
+FROM rust:1.88 as cacher
+
+WORKDIR /app
+
+# Install cargo-chef
+RUN cargo install cargo-chef
+
+# Copy and execute the dependency build plan
+COPY --from=planner /app/recipe.json recipe.json
+COPY Cargo.toml Cargo.lock ./
+RUN cargo chef cook --release --recipe-path recipe.json
+
+# ---- Stage 3: Application build ----
+FROM rust:1.88 as builder
+
+WORKDIR /app
+
+# Copy everything
+COPY . .
+
+# Copy built dependencies from cacher
+COPY --from=cacher /app/target /app/target
+COPY --from=cacher /usr/local/cargo /usr/local/cargo
+
+# Build the final binary
 RUN cargo build --release
 
-# ---- Runtime Stage ----
+# ---- Stage 4: Minimal runtime ----
 FROM debian:bullseye-slim
 
 # Install minimal runtime dependencies
@@ -23,14 +49,9 @@ RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/
 # Set up non-root user
 RUN useradd -m appuser
 
-# Copy the built binary from the builder
+# Copy compiled binary
 COPY --from=builder /app/target/release/collab-editor-server /usr/local/bin/collab-editor-server
 
-# Use non-root user
 USER appuser
-
-# Expose the WebSocket port
 EXPOSE 8080
-
-# Start the server
 ENTRYPOINT ["/usr/local/bin/collab-editor-server"]
