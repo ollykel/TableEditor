@@ -4,13 +4,13 @@ const WS_URL = "ws://localhost:8080/ws";
 
 // Define the types for incoming and outgoing messages
 type InitMessage = { type: "init"; client_id: number; text: string };
-type CreateMessage = { type: "create"; client_id: number; index: number; text: string };
+type InsertMessage = { type: "insert"; client_id: number; index: number; text: string };
 type DeleteMessage = { type: "delete"; client_id: number; start: number; end: number };
 type ReplaceMessage = { type: "replace"; client_id: number; start: number; end: number; text: string };
 
-type IncomingMessage = InitMessage | CreateMessage | DeleteMessage | ReplaceMessage;
+type IncomingMessage = InitMessage | InsertMessage | DeleteMessage | ReplaceMessage;
 
-type OutgoingMessage = CreateMessage | DeleteMessage | ReplaceMessage;
+type OutgoingMessage = InsertMessage | DeleteMessage | ReplaceMessage;
 
 export default function TextEditor(): React.JSX.Element {
   const [text, setText] = useState<string>("");
@@ -46,7 +46,7 @@ export default function TextEditor(): React.JSX.Element {
           }
           break;
 
-        case "create":
+        case "insert":
           console.log('CREATE id:', msg.client_id);
           console.log('(client id:', clientId, ')');
           if (msg.client_id !== clientIdRef.current)
@@ -148,7 +148,7 @@ function computeDiff(
 
   if (removed.length === 0 && inserted.length > 0) {
     return {
-      type: "create" as const,
+      type: "insert" as const,
       payload: { index: start, text: inserted },
     };
   } else if (removed.length > 0 && inserted.length === 0) {

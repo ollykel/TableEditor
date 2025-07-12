@@ -14,7 +14,7 @@ use warp::Filter;
 #[serde(tag = "type", rename_all = "lowercase")]
 enum ClientMessage {
     Init { client_id: u64, text: String },
-    Create { client_id: u64, index: usize, text: String },
+    Insert { client_id: u64, index: usize, text: String },
     Delete { client_id: u64, start: usize, end: usize },
     Replace { client_id: u64, start: usize, end: usize, text: String },
 }
@@ -106,7 +106,7 @@ async fn apply_text_change(msg: &ClientMessage, shared_text: &SharedText) {
     let mut text = shared_text.lock().await;
 
     match msg {
-        ClientMessage::Create { client_id: _, index, text: insert } => {
+        ClientMessage::Insert { client_id: _, index, text: insert } => {
             if *index <= text.len() {
                 text.insert_str(*index, insert);
             }

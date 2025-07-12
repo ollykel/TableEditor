@@ -5,7 +5,7 @@ init (server => client): sends initial data to client after connection
 established
   - client_id: newly assigned client id
   - text: complete text string as of client connection
-create (<=>): insert new text into string
+insert (<=>): insert new text into string
   - client_id: id of client who inserted text
   - index: start index at which to insert
   - text: text to insert
