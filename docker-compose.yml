@@ -1,0 +1,17 @@
+name: table_editor
+
+services:
+  web_socket_server:
+    container_name: web_socket_server
+    build: WebSocketServer
+    ports:
+      - ${TABLE_EDITOR_WS_PORT-8080}:8080
+  
+  frontend:
+    container_name: frontend
+    build: Frontend
+    depends_on:
+      - web_socket_server
+    ports:
+      - ${TABLE_EDITOR_HTTP_PORT-3000}:80
+
