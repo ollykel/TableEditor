@@ -9,3 +9,9 @@ warp = "0.3"
 futures = "0.3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+[[bin]]
+# Dummy build target to make Cargo happy when installing dependencies.
+# Avoids needing to re-install dependencies every time the service is rebuilt.
+name = "dummy"
+path = "src/dummy.rs"
