@@ -1,0 +1,6 @@
+# build artifacts
+/node_modules/
+
+# lockfiles (we're just handling them within Dockerfiles)
+package-lock.json
+*.lock

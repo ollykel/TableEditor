@@ -3,18 +3,20 @@ import React, { useEffect, useRef, useState } from "react";
 const WS_URL = "ws://localhost:8080/ws";
 
 // Define the types for incoming and outgoing messages
-type InitMessage = { type: "init"; text: string };
-type CreateMessage = { type: "create"; index: number; text: string };
-type DeleteMessage = { type: "delete"; start: number; end: number };
-type ReplaceMessage = { type: "replace"; start: number; end: number; text: string };
+type InitMessage = { type: "init"; client_id: number; text: string };
+type CreateMessage = { type: "create"; client_id: number; index: number; text: string };
+type DeleteMessage = { type: "delete"; client_id: number; start: number; end: number };
+type ReplaceMessage = { type: "replace"; client_id: number; start: number; end: number; text: string };
 
 type IncomingMessage = InitMessage | CreateMessage | DeleteMessage | ReplaceMessage;
 
 type OutgoingMessage = CreateMessage | DeleteMessage | ReplaceMessage;
 
-export default function TextEditor(): JSX.Element {
+export default function TextEditor(): React.JSX.Element {
   const [text, setText] = useState<string>("");
   const [connected, setConnected] = useState<boolean>(false);
+  const [clientId, setClientId] = useState<number>(-1);
+  const clientIdRef = useRef<number>(clientId);
   const socketRef = useRef<WebSocket | null>(null);
   const textRef = useRef<string>(text);
 
@@ -36,10 +38,18 @@ export default function TextEditor(): JSX.Element {
 
       switch (msg.type) {
         case "init":
-          setText(msg.text);
+          {
+            console.log('Client ID:', msg.client_id);
+            setText(msg.text);
+            setClientId(msg.client_id);
+            clientIdRef.current = msg.client_id;
+          }
           break;
 
         case "create":
+          console.log('CREATE id:', msg.client_id);
+          console.log('(client id:', clientId, ')');
+          if (msg.client_id !== clientIdRef.current)
           {
             const before = currentText.slice(0, msg.index);
             const after = currentText.slice(msg.index);
@@ -48,6 +58,8 @@ export default function TextEditor(): JSX.Element {
           break;
 
         case "delete":
+          console.log('DELETE id:', msg.client_id);
+          if (msg.client_id !== clientIdRef.current)
           {
             const before = currentText.slice(0, msg.start);
             const after = currentText.slice(msg.end);
@@ -56,6 +68,8 @@ export default function TextEditor(): JSX.Element {
           break;
 
         case "replace":
+          console.log('REPLACE id:', msg.client_id);
+          if (msg.client_id !== clientIdRef.current)
           {
             const before = currentText.slice(0, msg.start);
             const after = currentText.slice(msg.end);
@@ -85,7 +99,7 @@ export default function TextEditor(): JSX.Element {
 
     const { type, payload } = diff;
 
-    const message: OutgoingMessage = { type, ...payload } as OutgoingMessage;
+    const message: OutgoingMessage = { type, client_id: clientId, ...payload } as OutgoingMessage;
     socketRef.current?.send(JSON.stringify(message));
 
     setText(newText);

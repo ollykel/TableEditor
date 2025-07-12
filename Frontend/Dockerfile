@@ -4,9 +4,10 @@ FROM node:24 AS builder
 WORKDIR /app
 
 # Copy package manager files first (for Docker caching)
-COPY package.json package-lock.json ./
+COPY package.json ./
 
 # Install dependencies
+RUN npm install
 RUN npm ci
 
 # Copy the rest of the app source
@@ -28,5 +29,4 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port 3000 and start nginx
-EXPOSE 3000
 CMD ["nginx", "-g", "daemon off;"]
