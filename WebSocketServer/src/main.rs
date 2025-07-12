@@ -1,5 +1,4 @@
 use std::{
-    cell::RefCell,
     net::SocketAddr,
     sync::Arc,
 };
@@ -20,11 +19,11 @@ enum ClientMessage {
 }
 
 type SharedText = Arc<Mutex<String>>;
-type SharedClientId = Arc<Mutex<RefCell<u64>>>;
+type SharedClientId = Arc<Mutex<u64>>;
 
 #[tokio::main]
 async fn main() {
-    let client_id = Arc::new(Mutex::new(RefCell::new(0u64)));
+    let client_id = Arc::new(Mutex::new(0u64));
     let text = Arc::new(Mutex::new(String::from("Hello, World!")));
     let (tx, _rx) = broadcast::channel::<ClientMessage>(100);
 
@@ -63,13 +62,13 @@ async fn handle_connection(ws: WebSocket, client_id: SharedClientId, text: Share
 
     // Send initial text to the user
     {
-        let client_id = client_id.lock().await;
+        let mut client_id = client_id.lock().await;
         let current_text = text.lock().await.clone();
-        let init_msg = ClientMessage::Init { client_id: *client_id.borrow(), text: current_text };
+        let init_msg = ClientMessage::Init { client_id: *client_id, text: current_text };
         let json = serde_json::to_string(&init_msg).unwrap();
         let _ = user_ws_tx.send(Message::text(json)).await;
 
-        *client_id.borrow_mut() += 1;
+        *client_id += 1;
     }
 
     let send_task = tokio::spawn(async move {
