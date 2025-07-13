@@ -3,12 +3,13 @@ import React, { useEffect, useRef, useState } from "react";
 const WS_URL = "ws://localhost:8080/ws";
 
 // Define the types for incoming and outgoing messages
-type InitMessage = { type: "init"; client_id: number; text: string };
+type InitMessage = { type: "init"; client_id: number; text: string; lock_owner_id?: number };
 type InsertMessage = { type: "insert"; client_id: number; index: number; text: string };
 type DeleteMessage = { type: "delete"; client_id: number; start: number; end: number };
 type ReplaceMessage = { type: "replace"; client_id: number; start: number; end: number; text: string };
+type AcquireLockMessage = { type: "acquire_lock"; client_id: number };
 
-type IncomingMessage = InitMessage | InsertMessage | DeleteMessage | ReplaceMessage;
+type IncomingMessage = InitMessage | InsertMessage | DeleteMessage | ReplaceMessage | AcquireLockMessage;
 
 type OutgoingMessage = InsertMessage | DeleteMessage | ReplaceMessage;
 
@@ -16,9 +17,12 @@ export default function TextEditor(): React.JSX.Element {
   const [text, setText] = useState<string>("");
   const [connected, setConnected] = useState<boolean>(false);
   const [clientId, setClientId] = useState<number>(-1);
+  const [lockOwnerId, setLockOwnerId] = useState<number>(-1);
   const clientIdRef = useRef<number>(clientId);
+  const lockOwnerIdRef = useRef<number>(lockOwnerId);
   const socketRef = useRef<WebSocket | null>(null);
   const textRef = useRef<string>(text);
+  const isLocked = (lockOwnerId !== -1) && (lockOwnerId !== clientId);
 
   useEffect(() => {
     textRef.current = text;
@@ -43,6 +47,14 @@ export default function TextEditor(): React.JSX.Element {
             setText(msg.text);
             setClientId(msg.client_id);
             clientIdRef.current = msg.client_id;
+
+            if (msg.lock_owner_id) {
+              setLockOwnerId(msg.lock_owner_id);
+              lockOwnerIdRef.current = msg.lock_owner_id;
+            } else {
+              setLockOwnerId(-1);
+              lockOwnerIdRef.current = -1;
+            }
           }
           break;
 
@@ -76,6 +88,13 @@ export default function TextEditor(): React.JSX.Element {
             setText(before + msg.text + after);
           }
           break;
+        case "acquire_lock":
+          {
+            setLockOwnerId(msg.client_id);
+            lockOwnerIdRef.current = msg.client_id;
+            console.log('Lock acquired by', msg.client_id);
+          }
+          break;
       }
     };
 
@@ -107,12 +126,13 @@ export default function TextEditor(): React.JSX.Element {
 
   return (
     <div>
+      {connected && isLocked && <p style={{ color: "red" }}>Lock acquired by client {lockOwnerId}</p>}
       <textarea
         rows={20}
         cols={100}
         value={text}
         onChange={handleChange}
-        disabled={!connected}
+        disabled={!connected || isLocked}
         style={{ fontFamily: "monospace", width: "100%" }}
       />
       {!connected && <p style={{ color: "red" }}>Disconnected</p>}
