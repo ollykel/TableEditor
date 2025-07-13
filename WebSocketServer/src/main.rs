@@ -102,7 +102,7 @@ async fn handle_connection(ws: WebSocket, lock_owner_id: LockOwnerId, client_id:
     let recv_task = tokio::spawn(async move {
         while let Some(Ok(msg)) = user_ws_rx.next().await {
             if let Ok(text_str) = msg.to_str() {
-                if let Ok(client_msg) = serde_json::from_str::<ClientMessage>(text_str) {
+                if let Ok(mut client_msg) = serde_json::from_str::<ClientMessage>(text_str) {
                     let mut lock_owner_id = lock_owner_id.lock().await;
 
                     match *lock_owner_id {
@@ -116,11 +116,9 @@ async fn handle_connection(ws: WebSocket, lock_owner_id: LockOwnerId, client_id:
                             let _ = tx_clone.send(client_msg);
                         },
                         Some(id) => if current_client_id == id {
-                            let mut out_msg = client_msg.clone();
-
-                            apply_client_id(&mut out_msg, current_client_id);
+                            apply_client_id(&mut client_msg, current_client_id);
                             apply_text_change(&client_msg, &text_clone).await;
-                            let _ = tx_clone.send(out_msg);
+                            let _ = tx_clone.send(client_msg);
                         }
                     };
                 }
