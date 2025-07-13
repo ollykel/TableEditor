@@ -116,8 +116,11 @@ async fn handle_connection(ws: WebSocket, lock_owner_id: LockOwnerId, client_id:
                             let _ = tx_clone.send(client_msg);
                         },
                         Some(id) => if current_client_id == id {
+                            let mut out_msg = client_msg.clone();
+
+                            apply_client_id(&mut out_msg, current_client_id);
                             apply_text_change(&client_msg, &text_clone).await;
-                            let _ = tx_clone.send(client_msg);
+                            let _ = tx_clone.send(out_msg);
                         }
                     };
                 }
@@ -145,6 +148,22 @@ async fn handle_connection(ws: WebSocket, lock_owner_id: LockOwnerId, client_id:
 
     println!("Client disconnected");
 }
+
+fn apply_client_id(msg: &mut ClientMessage, cid: u64) {
+    use ClientMessage::*;
+
+    let mut dummy = 0u64;
+    let mut client_id = match msg {
+        Insert { ref mut client_id, .. } => client_id,
+        Delete { ref mut client_id, .. } => client_id,
+        Replace { ref mut client_id, .. } => client_id,
+        Init { ref mut client_id, .. } => client_id,
+        AcquireLock { ref mut client_id, .. } => client_id,
+        _ => &mut dummy
+    };
+
+    *client_id = cid;
+}// end fn apply_client_id(musg: &mut ClientMessage, client_id: u64)
 
 async fn apply_text_change(msg: &ClientMessage, shared_text: &SharedText) {
     use ClientMessage::*;
