@@ -1,9 +1,16 @@
 use std::{
     net::SocketAddr,
     sync::Arc,
+    thread,
+    time::Duration,
 };
 
-use futures::{SinkExt, StreamExt, lock::Mutex};
+use futures::{
+    SinkExt,
+    StreamExt,
+    lock::Mutex,
+    executor::block_on
+};
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 use warp::ws::{Message, WebSocket};
@@ -30,6 +37,26 @@ async fn main() {
     let client_id = Arc::new(Mutex::new(0u64));
     let text = Arc::new(Mutex::new(String::from("Hello, World!")));
     let (tx, _rx) = broadcast::channel::<ClientMessage>(100);
+
+    // test thread
+    {
+        let lock_owner_id_clone = Arc::clone(&lock_owner_id);
+        let tx_clone = tx.clone();
+
+        let reset_lock = async move || {
+           loop {
+                eprintln!("Resetting lock ...");
+                {
+                    let mut lock_owner_id = lock_owner_id_clone.lock().await;
+                    let _ = tx_clone.send(ClientMessage::ReleaseLock);
+                    *lock_owner_id = None;
+                }
+                thread::sleep(Duration::from_millis(5000));
+            };
+        };
+
+        thread::spawn(move || block_on(reset_lock()));
+    }
 
     let lock_owner_id_filter = warp::any().map({
         let lock_owner_id = Arc::clone(&lock_owner_id);
