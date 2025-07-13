@@ -8,8 +8,9 @@ type InsertMessage = { type: "insert"; client_id: number; index: number; text: s
 type DeleteMessage = { type: "delete"; client_id: number; start: number; end: number };
 type ReplaceMessage = { type: "replace"; client_id: number; start: number; end: number; text: string };
 type AcquireLockMessage = { type: "acquire_lock"; client_id: number };
+type ReleaseLockMessage = { type: "release_lock" };
 
-type IncomingMessage = InitMessage | InsertMessage | DeleteMessage | ReplaceMessage | AcquireLockMessage;
+type IncomingMessage = InitMessage | InsertMessage | DeleteMessage | ReplaceMessage | AcquireLockMessage | ReleaseLockMessage;
 
 type OutgoingMessage = InsertMessage | DeleteMessage | ReplaceMessage;
 
@@ -93,6 +94,13 @@ export default function TextEditor(): React.JSX.Element {
             setLockOwnerId(msg.client_id);
             lockOwnerIdRef.current = msg.client_id;
             console.log('Lock acquired by', msg.client_id);
+          }
+          break;
+        case "release_lock":
+          {
+            setLockOwnerId(-1);
+            lockOwnerIdRef.current = -1;
+            console.log('Lock released');
           }
           break;
       }

@@ -123,6 +123,19 @@ async fn handle_connection(ws: WebSocket, lock_owner_id: LockOwnerId, client_id:
                 }
             }
         }
+
+        // Release lock on client disconnect
+        {
+            let mut lock_owner_id = lock_owner_id.lock().await;
+
+            match *lock_owner_id {
+                None => {},
+                Some(id) => if id == current_client_id {
+                    let _ = tx_clone.send(ClientMessage::ReleaseLock);
+                    *lock_owner_id = None;
+                }
+            };
+        }
     });
 
     tokio::select! {
