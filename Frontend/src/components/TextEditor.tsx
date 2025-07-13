@@ -24,6 +24,7 @@ export default function TextEditor(): React.JSX.Element {
   const socketRef = useRef<WebSocket | null>(null);
   const textRef = useRef<string>(text);
   const isLocked = (lockOwnerId !== -1) && (lockOwnerId !== clientId);
+  const isLockOwner = (lockOwnerId !== -1) && (lockOwnerId === clientId);
 
   useEffect(() => {
     textRef.current = text;
@@ -134,7 +135,8 @@ export default function TextEditor(): React.JSX.Element {
 
   return (
     <div>
-      {connected && isLocked && <p style={{ color: "red" }}>Lock acquired by client {lockOwnerId}</p>}
+      {connected && isLocked && <p style={{ color: "red" }}>Client {lockOwnerId} is currently writing ...</p>}
+      {connected && isLockOwner && <p style={{ color: "green" }}>You are currently writing</p>}
       <textarea
         rows={20}
         cols={100}
