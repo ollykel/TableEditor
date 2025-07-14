@@ -16,82 +16,99 @@ use tokio::sync::broadcast;
 use warp::ws::{Message, WebSocket};
 use warp::Filter;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-enum ClientMessage {
-    Init { client_id: u64, text: String, lock_owner_id: Option<u64> },
-    Insert { client_id: u64, index: usize, text: String },
-    Delete { client_id: u64, start: usize, end: usize },
-    Replace { client_id: u64, start: usize, end: usize, text: String },
-    AcquireLock { client_id: u64 },
-    ReleaseLock,
-}
-
-#[derive(Copy,Clone)]
-struct SharedTextLockData {
+// === CellLockData ===============================================================================
+//
+// Contains information on the current owner of a table cell.
+//
+// - owner_id: The client id of the owner
+// - duration_secs: How many seconds are left before the client relinquishes ownership of the cell
+// (should be refreshed whenever the client performs an operation on the cell)
+//
+// ================================================================================================
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+struct CellLockData {
     owner_id: u64,
     duration_secs: u32
 }
 
-type SharedText = Arc<Mutex<String>>;
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct TableCell {
+    text: String,
+    lock: Option<CellLockData>
+}
+
+// === ClientMessage ==============================================================================
+//
+// Encompasses all messages to be sent from/to clients. Cells are identified in (row, column)
+// format.
+//
+// ================================================================================================
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+enum ClientMessage {
+    Init { client_id: u64, table: Vec<Vec<TableCell>> },
+    Insert { client_id: u64, cell: (usize, usize), index: usize, text: String },
+    Delete { client_id: u64, cell: (usize, usize), start: usize, end: usize },
+    Replace { client_id: u64, cell: (usize, usize), start: usize, end: usize, text: String },
+    AcquireLock { client_id: u64, cell: (usize, usize) },
+    ReleaseLock { cell: (usize, usize) },
+}
+
+type SharedTable = Arc<Vec<Vec<Arc<Mutex<TableCell>>>>>;
 type SharedClientId = Arc<Mutex<u64>>;
-type SharedTextLock = Arc<Mutex<Option<SharedTextLockData>>>;
 
 #[tokio::main]
 async fn main() {
-    let shared_text_lock = Arc::new(Mutex::new(Option::<SharedTextLockData>::None));
-    let client_id = Arc::new(Mutex::new(0u64));
-    let text = Arc::new(Mutex::new(String::from("Hello, World!")));
+    let table: SharedTable = Arc::new((0..3)
+        .map(|_| {
+            (0..3).map(|_| Arc::new(Mutex::new(TableCell {
+                text: String::from("Hallo Welt"),
+                lock: None
+            }))).collect()
+        }).collect());
+
+    let next_client_id: SharedClientId = Arc::new(Mutex::new(0u64));
     let (tx, _rx) = broadcast::channel::<ClientMessage>(100);
 
-    // thread to release lock after idle for five seconds
     {
-        let shared_text_lock_clone = Arc::clone(&shared_text_lock);
+        let table_clone = Arc::clone(&table);
         let tx_clone = tx.clone();
 
-        let reset_lock = async move || {
-           loop {
-                {
-                    let mut shared_text_lock = shared_text_lock_clone.lock().await;
-                    let mut to_reset = false;
-
-                    match *shared_text_lock {
-                        None => {},
-                        Some(ref mut info) => {
-                            if info.duration_secs < 2 {
-                                to_reset = true;
-                            } else {
-                                info.duration_secs -= 1;
+        thread::spawn(move || {
+            block_on(async move {
+                loop {
+                    for row in 0..3 {
+                        for col in 0..3 {
+                            let mut cell = table_clone[row][col].lock().await;
+                            let mut to_reset = false;
+                            if let Some(ref mut lock) = cell.lock {
+                                if lock.duration_secs < 2 {
+                                    to_reset = true;
+                                } else {
+                                    lock.duration_secs -= 1;
+                                }
+                            }
+                            if to_reset {
+                                eprintln!("Resetting lock ({}, {})", row, col);
+                                cell.lock = None;
+                                let _ = tx_clone.send(ClientMessage::ReleaseLock { cell: (row, col) });
                             }
                         }
-                    };// end match shared_text_lock
-
-                    if to_reset {
-                        eprintln!("Resetting lock ...");
-                        let _ = tx_clone.send(ClientMessage::ReleaseLock);
-                        *shared_text_lock = None;
                     }
+                    thread::sleep(Duration::from_secs(1));
                 }
-                thread::sleep(Duration::from_millis(1000));
-            };
-        };
-
-        thread::spawn(move || block_on(reset_lock()));
+            });
+        });
     }
 
-    let shared_text_lock_filter = warp::any().map({
-        let shared_text_lock = Arc::clone(&shared_text_lock);
-        move || Arc::clone(&shared_text_lock)
+    let table_filter = warp::any().map({
+        let table = Arc::clone(&table);
+        move || Arc::clone(&table)
     });
 
-    let client_id_filter = warp::any().map({
-        let client_id = Arc::clone(&client_id);
-        move || Arc::clone(&client_id)
-    });
-
-    let text_filter = warp::any().map({
-        let text = Arc::clone(&text);
-        move || Arc::clone(&text)
+    let next_client_id_filter = warp::any().map({
+        let next_client_id = Arc::clone(&next_client_id);
+        move || Arc::clone(&next_client_id)
     });
 
     let tx_filter = warp::any().map({
@@ -101,12 +118,11 @@ async fn main() {
 
     let ws_route = warp::path("ws")
         .and(warp::ws())
-        .and(shared_text_lock_filter)
-        .and(client_id_filter)
-        .and(text_filter)
+        .and(table_filter)
+        .and(next_client_id_filter)
         .and(tx_filter)
-        .map(|ws: warp::ws::Ws, shared_text_lock, client_id, text, tx| {
-            ws.on_upgrade(move |socket| handle_connection(socket, shared_text_lock, client_id, text, tx))
+        .map(|ws: warp::ws::Ws, table, next_client_id, tx| {
+            ws.on_upgrade(move |socket| handle_connection(socket, table, next_client_id, tx))
         });
 
     let addr: SocketAddr = ([0, 0, 0, 0], 8080).into();
@@ -114,31 +130,35 @@ async fn main() {
     warp::serve(ws_route).run(addr).await;
 }
 
-async fn handle_connection(ws: WebSocket, shared_text_lock: SharedTextLock, client_id: SharedClientId, text: SharedText, tx: broadcast::Sender<ClientMessage>) {
+async fn handle_connection(ws: WebSocket, table: SharedTable, next_client_id: SharedClientId, tx: broadcast::Sender<ClientMessage>) {
     let (mut user_ws_tx, mut user_ws_rx) = ws.split();
     let mut rx = tx.subscribe();
-    let mut current_client_id = u64::MAX;
+    let mut current_client_id;
 
-    // Send initial text to the user
     {
-        let shared_text_lock = shared_text_lock.lock().await;
-        let lock_owner_id : Option<u64> = match *shared_text_lock {
-            None => None,
-            Some(info) => Some(info.owner_id)
-        };
-        let mut client_id = client_id.lock().await;
-
-        current_client_id = *client_id;
-
-        let current_text = text.lock().await.clone();
-        let init_msg = ClientMessage::Init{
-            client_id: current_client_id, lock_owner_id: lock_owner_id, text: current_text
-        };
-        let json = serde_json::to_string(&init_msg).unwrap();
-        let _ = user_ws_tx.send(Message::text(json)).await;
-
-        *client_id += 1;
+        let mut id_lock = next_client_id.lock().await;
+        current_client_id = *id_lock;
+        *id_lock += 1;
     }
+
+    let init_table = {
+        let mut snapshot = vec![];
+        for row in &*table {
+            let mut snap_row = vec![];
+            for cell in row {
+                let c = cell.lock().await;
+                snap_row.push(c.clone());
+            }
+            snapshot.push(snap_row);
+        }
+        snapshot
+    };
+
+    let init_msg = ClientMessage::Init {
+        client_id: current_client_id,
+        table: init_table,
+    };
+    let _ = user_ws_tx.send(Message::text(serde_json::to_string(&init_msg).unwrap())).await;
 
     let send_task = tokio::spawn(async move {
         while let Ok(msg) = rx.recv().await {
@@ -149,50 +169,48 @@ async fn handle_connection(ws: WebSocket, shared_text_lock: SharedTextLock, clie
         }
     });
 
-    let text_clone = Arc::clone(&text);
-    let tx_clone = tx.clone();
-    let recv_task = tokio::spawn(async move {
-        while let Some(Ok(msg)) = user_ws_rx.next().await {
-            if let Ok(text_str) = msg.to_str() {
-                if let Ok(mut client_msg) = serde_json::from_str::<ClientMessage>(text_str) {
-                    let mut shared_text_lock = shared_text_lock.lock().await;
-
-                    match *shared_text_lock {
-                        None => {
-                            // broadcast that a user has acquired the lock
-                            let lock_msg = ClientMessage::AcquireLock{ client_id: current_client_id };
-                            let _ = tx_clone.send(lock_msg);
-
-                            *shared_text_lock = Some(SharedTextLockData{
-                                owner_id: current_client_id, duration_secs: 3
-                            });
-                            apply_text_change(&client_msg, &text_clone).await;
-                            let _ = tx_clone.send(client_msg);
-                        },
-                        Some(ref mut info) => if current_client_id == info.owner_id {
-                            // reset duration
-                            info.duration_secs = 3;
-
-                            apply_client_id(&mut client_msg, current_client_id);
-                            apply_text_change(&client_msg, &text_clone).await;
-                            let _ = tx_clone.send(client_msg);
+    let recv_task = tokio::spawn({
+        let table = Arc::clone(&table);
+        let tx = tx.clone();
+        async move {
+            while let Some(Ok(msg)) = user_ws_rx.next().await {
+                if let Ok(text_str) = msg.to_str() {
+                    if let Ok(client_msg) = serde_json::from_str::<ClientMessage>(text_str) {
+                        match client_msg.clone() {
+                            ClientMessage::Insert { cell: (r, c), index, ref text, .. } => {
+                                let mut cell = table[r][c].lock().await;
+                                if cell.lock.map_or(true, |l| l.owner_id == current_client_id) {
+                                    cell.text.insert_str(index, text);
+                                    cell.lock = Some(CellLockData { owner_id: current_client_id, duration_secs: 3 });
+                                    tx.send(client_msg).ok();
+                                    tx.send(ClientMessage::AcquireLock { client_id: current_client_id, cell: (r, c) }).ok();
+                                }
+                            }
+                            ClientMessage::Delete { cell: (r, c), start, end, .. } => {
+                                let mut cell = table[r][c].lock().await;
+                                if cell.lock.map_or(true, |l| l.owner_id == current_client_id) {
+                                    if start <= end && end <= cell.text.len() {
+                                        cell.text.replace_range(start..end, "");
+                                        cell.lock = Some(CellLockData { owner_id: current_client_id, duration_secs: 3 });
+                                        tx.send(client_msg).ok();
+                                    }
+                                }
+                            }
+                            ClientMessage::Replace { cell: (r, c), start, end, ref text, .. } => {
+                                let mut cell = table[r][c].lock().await;
+                                if cell.lock.map_or(true, |l| l.owner_id == current_client_id) {
+                                    if start <= end && end <= cell.text.len() {
+                                        cell.text.replace_range(start..end, text);
+                                        cell.lock = Some(CellLockData { owner_id: current_client_id, duration_secs: 3 });
+                                        tx.send(client_msg).ok();
+                                    }
+                                }
+                            }
+                            _ => {}
                         }
-                    };
+                    }
                 }
             }
-        }
-
-        // Release lock on client disconnect
-        {
-            let mut shared_text_lock = shared_text_lock.lock().await;
-
-            match *shared_text_lock {
-                None => {},
-                Some(info) => if info.owner_id == current_client_id {
-                    let _ = tx_clone.send(ClientMessage::ReleaseLock);
-                    *shared_text_lock = None;
-                }
-            };
         }
     });
 
@@ -201,48 +219,5 @@ async fn handle_connection(ws: WebSocket, shared_text_lock: SharedTextLock, clie
         _ = recv_task => {},
     }
 
-    println!("Client disconnected");
-}
-
-fn apply_client_id(msg: &mut ClientMessage, cid: u64) {
-    use ClientMessage::*;
-
-    let mut dummy = 0u64;
-    let mut client_id = match msg {
-        Insert { ref mut client_id, .. } => client_id,
-        Delete { ref mut client_id, .. } => client_id,
-        Replace { ref mut client_id, .. } => client_id,
-        Init { ref mut client_id, .. } => client_id,
-        AcquireLock { ref mut client_id, .. } => client_id,
-        _ => &mut dummy
-    };
-
-    *client_id = cid;
-}// end fn apply_client_id(musg: &mut ClientMessage, client_id: u64)
-
-async fn apply_text_change(msg: &ClientMessage, shared_text: &SharedText) {
-    use ClientMessage::*;
-
-    let mut text = shared_text.lock().await;
-
-    match msg {
-        Insert { client_id: _, index, text: insert } => {
-            if *index <= text.len() {
-                text.insert_str(*index, insert);
-            }
-        }
-        Delete { client_id: _, start, end } => {
-            if *start <= *end && *end <= text.len() {
-                text.replace_range(*start..*end, "");
-            }
-        }
-        Replace { client_id: _, start, end, text: replacement } => {
-            if *start <= *end && *end <= text.len() {
-                text.replace_range(*start..*end, replacement);
-            }
-        }
-        Init { .. } | AcquireLock { .. } | ReleaseLock => {
-            // These events should not trigger on the server
-        },
-    }
+    println!("Client {} disconnected", current_client_id);
 }

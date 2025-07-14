@@ -1,11 +1,15 @@
 import './App.css'
 
-import TextEditor from '@/components/TextEditor';
+import { WebSocketProvider } from '@/context/WebSocketContext';
+
+import { TableEditor } from '@/components/TableEditor';
 
 function App() {
   return (
     <>
-      <TextEditor />
+      <WebSocketProvider>
+        <TableEditor />
+      </WebSocketProvider>
     </>
   )
 }
