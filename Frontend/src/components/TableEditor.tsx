@@ -10,7 +10,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useWebSocket } from '@/context/WebSocketContext';
 import { TableCell as CellComponent } from './TableCell';
 
-const WS_URI = 'ws://localhost:4000/ws';
+const WS_URI = 'ws://localhost:8080/ws';
 
 type TableCellData = { text: string; owner_id?: number };
 
