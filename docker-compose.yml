@@ -7,7 +7,7 @@ services:
     container_name: web_socket_server
     build: WebSocketServer
     ports:
-      - ${TABLE_EDITOR_WS_PORT-8080}:8080
+      - ${TABLE_EDITOR_WS_PORT-4000}:4000
     environment:
       TABLE_EDITOR_WS_PORT: ${TABLE_EDITOR_WS_PORT-4000}
       TABLE_EDITOR_FRONTEND_PORT: ${TABLE_EDITOR_FRONTEND_PORT-3000}

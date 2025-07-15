@@ -1,4 +1,5 @@
 use std::{
+    env,
     net::SocketAddr,
     sync::Arc,
     thread,
@@ -65,6 +66,15 @@ type SharedClientId = Arc<Mutex<u64>>;
 
 #[tokio::main]
 async fn main() {
+    // Values derived from environment
+    let port_env = "TABLE_EDITOR_WS_PORT";
+    let port : u16 = match env::var(port_env) {
+        Ok(val_s) => match val_s.parse::<u16>() {
+            Ok(val) => val,
+            Err(e) => panic!("Could not parse {} value {}: {}", port_env, val_s, e)
+        },
+        Err(e) => panic!("Could not find {}: {}", port_env, e)
+    };
     let table: SharedTable = Arc::new((0..3)
         .map(|_| {
             (0..3).map(|_| Arc::new(Mutex::new(TableCell {
@@ -131,7 +141,7 @@ async fn main() {
             ws.on_upgrade(move |socket| handle_connection(socket, table, next_client_id, tx))
         });
 
-    let addr: SocketAddr = ([0, 0, 0, 0], 8080).into();
+    let addr: SocketAddr = ([0, 0, 0, 0], port).into();
     println!("Rust WebSocket server running at ws://{}", addr);
     warp::serve(ws_route).run(addr).await;
 }
