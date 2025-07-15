@@ -1,8 +1,9 @@
 FROM nginx:stable-alpine
 
-# Copy custom nginx config
-COPY nginx.conf /etc/nginx/nginx.conf
+# Copy start.sh
+WORKDIR /app
+COPY start.sh ./
 
-# Expose port 2000 and start nginx
+# Expose port 8080 and start nginx
 EXPOSE 8080
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["./start.sh"]
