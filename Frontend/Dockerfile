@@ -26,7 +26,8 @@ RUN rm -rf /usr/share/nginx/html/*
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Copy custom nginx config (optional)
-# COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/nginx.conf
 
 # Expose port 3000 and start nginx
+EXPOSE 3000
 CMD ["nginx", "-g", "daemon off;"]
