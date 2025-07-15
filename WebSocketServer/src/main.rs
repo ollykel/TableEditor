@@ -37,6 +37,12 @@ struct TableCell {
     lock: Option<CellLockData>
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct TableCellClientView {
+    text: String,
+    owner_id: Option<u64>
+}
+
 // === ClientMessage ==============================================================================
 //
 // Encompasses all messages to be sent from/to clients. Cells are identified in (row, column)
@@ -46,7 +52,7 @@ struct TableCell {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum ClientMessage {
-    Init { client_id: u64, table: Vec<Vec<TableCell>> },
+    Init { client_id: u64, table: Vec<Vec<TableCellClientView>> },
     Insert { client_id: u64, cell: (usize, usize), index: usize, text: String },
     Delete { client_id: u64, cell: (usize, usize), start: usize, end: usize },
     Replace { client_id: u64, cell: (usize, usize), start: usize, end: usize, text: String },
@@ -147,7 +153,13 @@ async fn handle_connection(ws: WebSocket, table: SharedTable, next_client_id: Sh
             let mut snap_row = vec![];
             for cell in row {
                 let c = cell.lock().await;
-                snap_row.push(c.clone());
+                snap_row.push(TableCellClientView{
+                    text: c.text.clone(),
+                    owner_id: match &c.lock {
+                        None => None,
+                        Some(lock) => Some(lock.owner_id)
+                    }
+                });
             }
             snapshot.push(snap_row);
         }
@@ -175,34 +187,43 @@ async fn handle_connection(ws: WebSocket, table: SharedTable, next_client_id: Sh
         async move {
             while let Some(Ok(msg)) = user_ws_rx.next().await {
                 if let Ok(text_str) = msg.to_str() {
-                    if let Ok(client_msg) = serde_json::from_str::<ClientMessage>(text_str) {
-                        match client_msg.clone() {
-                            ClientMessage::Insert { cell: (r, c), index, ref text, .. } => {
+                    if let Ok(mut client_msg) = serde_json::from_str::<ClientMessage>(text_str) {
+                        match client_msg {
+                            ClientMessage::Insert { ref mut client_id, cell: (r, c), index, ref text, .. } => {
                                 let mut cell = table[r][c].lock().await;
+                                *client_id = current_client_id;
                                 if cell.lock.map_or(true, |l| l.owner_id == current_client_id) {
-                                    cell.text.insert_str(index, text);
+                                    if index >= cell.text.len() {
+                                        cell.text.push_str(text);
+                                    } else {
+                                        cell.text.insert_str(index, text);
+                                    }
                                     cell.lock = Some(CellLockData { owner_id: current_client_id, duration_secs: 3 });
                                     tx.send(client_msg).ok();
                                     tx.send(ClientMessage::AcquireLock { client_id: current_client_id, cell: (r, c) }).ok();
                                 }
                             }
-                            ClientMessage::Delete { cell: (r, c), start, end, .. } => {
+                            ClientMessage::Delete { ref mut client_id, cell: (r, c), start, end, .. } => {
                                 let mut cell = table[r][c].lock().await;
+                                *client_id = current_client_id;
                                 if cell.lock.map_or(true, |l| l.owner_id == current_client_id) {
                                     if start <= end && end <= cell.text.len() {
                                         cell.text.replace_range(start..end, "");
                                         cell.lock = Some(CellLockData { owner_id: current_client_id, duration_secs: 3 });
                                         tx.send(client_msg).ok();
+                                        tx.send(ClientMessage::AcquireLock { client_id: current_client_id, cell: (r, c) }).ok();
                                     }
                                 }
                             }
-                            ClientMessage::Replace { cell: (r, c), start, end, ref text, .. } => {
+                            ClientMessage::Replace { ref mut client_id, cell: (r, c), start, end, ref text, .. } => {
                                 let mut cell = table[r][c].lock().await;
+                                *client_id = current_client_id;
                                 if cell.lock.map_or(true, |l| l.owner_id == current_client_id) {
                                     if start <= end && end <= cell.text.len() {
                                         cell.text.replace_range(start..end, text);
                                         cell.lock = Some(CellLockData { owner_id: current_client_id, duration_secs: 3 });
                                         tx.send(client_msg).ok();
+                                        tx.send(ClientMessage::AcquireLock { client_id: current_client_id, cell: (r, c) }).ok();
                                     }
                                 }
                             }

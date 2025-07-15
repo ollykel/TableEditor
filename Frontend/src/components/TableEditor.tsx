@@ -6,36 +6,157 @@
 // =============================================================================
 
 // TableEditor.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useWebSocket } from '@/context/WebSocketContext';
 import { TableCell as CellComponent } from './TableCell';
 
 const WS_URI = 'ws://localhost:8080/ws';
 
-type TableCellData = { text: string; lock?: { owner_id: number; duration_secs: number } };
+type TableCellData = { text: string; owner_id?: number };
 
 // Define the types for incoming and outgoing messages
-// type InitMessage = { type: "init"; client_id: number; lock_owner_id?: number; table: TableCellData[][] };
-// type InsertMessage = { type: "insert"; client_id: number; cell: [number, number]; index: number; text: string };
-// type DeleteMessage = { type: "delete"; client_id: number; cell: [number, number]; start: number; end: number };
-// type ReplaceMessage = { type: "replace"; client_id: number; cell: [number, number]; start: number; end: number; text: string };
-// type AcquireLockMessage = { type: "acquire_lock"; client_id: number; cell: [number, number] };
-// type ReleaseLockMessage = { type: "release_lock" };
+interface DiffInsert { type: "insert"; index: number; text: string };
+interface DiffReplace { type: "replace"; start: number; end: number; text: string };
+interface DiffDelete { type: "delete"; start: number; end: number };
+interface DiffNone { type: "none" };
+type StrDiff = DiffInsert | DiffReplace | DiffDelete;
+
+interface MessageInit { type: "init"; client_id: number; table: TableCellData[][] };
+interface MessageInsert extends DiffInsert { client_id: number; cell: [number, number] };
+interface MessageDelete extends DiffDelete { client_id: number; cell: [number, number] };
+interface MessageReplace extends DiffReplace { client_id: number; cell: [number, number] };
+interface MessageAcquireLock { type: "acquire_lock"; client_id: number; cell: [number, number] };
+interface MessageReleaseLock { type: "release_lock"; cell: [number, number] };
+
+type ClientMutateMessage = MessageInsert | MessageDelete | MessageReplace | MessageAcquireLock;
+type MutateMessage = ClientMutateMessage | MessageReleaseLock;
+type Message = MessageInit | MutateMessage;
+
+const diffStrings = (olds: string, news: string): DiffInsert | DiffReplace | DiffDelete | DiffNone => {
+  if (olds === news) return { type: "none" };
+
+  // Find common prefix
+  let start = 0;
+  while (start < olds.length && start < news.length && olds[start] === news[start]) {
+    start++;
+  }
+
+  // Find common suffix
+  let endOld = olds.length;
+  let endNew = news.length;
+  while (
+    endOld > start &&
+    endNew > start &&
+    olds[endOld - 1] === news[endNew - 1]
+  ) {
+    endOld--;
+    endNew--;
+  }
+
+  const oldDiff = olds.slice(start, endOld);
+  const newDiff = news.slice(start, endNew);
+
+  if (oldDiff.length === 0 && newDiff.length > 0) {
+    return { type: "insert", index: start, text: newDiff };
+  }
+
+  if (oldDiff.length > 0 && newDiff.length === 0) {
+    return { type: "delete", start, end: endOld };
+  }
+
+  return { type: "replace", start, end: endOld, text: newDiff };
+};
+
+const mutateString = (olds: string, diff: StrDiff): string => {
+  let outs = olds;
+
+  switch (diff.type) {
+    case 'insert':
+      outs = olds.slice(0, diff.index) + diff.text + olds.slice(diff.index);
+      break;
+    case 'replace':
+      outs = olds.slice(0, diff.start) + diff.text + olds.slice(diff.end);
+      break;
+    case 'delete':
+      outs = olds.slice(0, diff.start) + olds.slice(diff.end);
+      break;
+  }// end switch (diff.type)
+
+  return outs;
+};// end const mutateString = (olds: string, diff: StrDiff): string
 
 export const TableEditor: React.FC = () => {
-  const { connect, isConnected } = useWebSocket();
-  const [table, setTable] = React.useState<TableCellData[][]>(
-    Array.from({ length: 3 }, () => Array(3).fill({ text: '' }))
+  const { socket, connect, isConnected } = useWebSocket();
+  const [table, setTable] = useState<TableCellData[][]>(
+    Array.from({ length: 3 }, () => Array(3).fill({ text: '', owner_id: -1 }))
   );
   const [clientId, setClientId] = useState<number>(-1);
+  const clientIdRef = useRef<number>(clientId);
 
-  const handleInit = (event: any): void => {
+  useEffect(() => {
+    clientIdRef.current = clientId;
+  }, [clientId]);
+
+  console.log('Client ID:', clientId);
+
+  const mutateCell = (msg: MutateMessage): void => {
+    const [row, col] = msg.cell;
+
+    setTable((oldTable) => {
+      let newCell = { ...oldTable[row][col] };
+      const targetRow = oldTable[row];
+
+      switch (msg.type) {
+        case 'insert':
+        case 'replace':
+        case 'delete':
+          console.log('Old cell:', newCell);
+          newCell.text = mutateString(newCell.text, msg as StrDiff);
+          console.log('New text:', newCell.text);
+          break;
+        case 'acquire_lock':
+          newCell.owner_id = msg.client_id;
+          break;
+        case 'release_lock':
+          newCell.owner_id = -1;
+          break;
+      }
+
+      return [
+        ...oldTable.slice(0, row),
+        [...targetRow.slice(0, col), newCell, ...targetRow.slice(col + 1)],
+        ...oldTable.slice(row + 1)
+      ];
+    });
+  };// end mutateCell
+  
+  const setText = (row: number, col: number, text: string): void => {
+    setTable((oldTable) => {
+      const newCell = { ...oldTable[row][col], text }
+      const targetRow = oldTable[row];
+
+      return [
+        ...oldTable.slice(0, row),
+        [...targetRow.slice(0, col), newCell, ...targetRow.slice(col + 1)],
+        ...oldTable.slice(row + 1)
+      ];
+    });
+
+  };// end setText
+
+  const handleMessage = (event: any): void => {
     try {
-      const msg = JSON.parse(event.data);
-      console.log('RECEIVED INIT:', msg);
-      if (msg.type === 'init' && Array.isArray(msg.table)) {
-        setClientId(msg.client_id);
-        setTable(msg.table);
+      const clientId = clientIdRef.current;
+      const msg = JSON.parse(event.data) as Message;
+      console.log('Received:', msg);
+      if (msg.type === 'init') {
+        if (Array.isArray(msg.table)) {
+          console.log('RECEIVED INIT');
+          setClientId(() => msg.client_id);
+          setTable(() => msg.table);
+        }
+      } else if (msg.type === 'release_lock' || msg.client_id !== clientId) {
+        mutateCell(msg);
       }
     } catch (err) {
       console.error('Failed to parse message:', err);
@@ -44,34 +165,32 @@ export const TableEditor: React.FC = () => {
 
   useEffect(() => {
     if (!isConnected) {
-      connect(WS_URI, handleInit);
+      connect(WS_URI, handleMessage);
     }
   }, [isConnected, connect]);
 
   // TODO: remove debug
   console.log('Table:', table);
 
-  const makeCell = (row: number, col: number): React.JSX.Element => {
-    const text = table[row][col].text;
-    const setText = (newText: string): void => {
-      const targetRow = table[row];
-      setTable([
-        ...table.slice(0, row),
-        [
-          ...targetRow.slice(0, col),
-          { text: newText },
-          ...targetRow.slice(col + 1)
-        ],
-        ...table.slice(row + 1)
-      ]);
+  const makeCell = (cell: TableCellData, row: number, col: number): React.JSX.Element => {
+    const clientId = clientIdRef.current;
+    const { text, owner_id: ownerId } = cell;
+    const handleChangeText = (newText: string): void => {
+      const diff = diffStrings(text, newText);
+
+      if (socket && diff.type !== 'none') {
+        const message = { client_id: 0, cell: [row, col], ...diff};
+        socket.send(JSON.stringify(message));
+        setText(row, col, newText);
+      }
     };
 
     return (<CellComponent
       key={`${row}-${col}`}
-      clientId={clientId}
-      row={row} col={col}
       text={text}
-      setText={setText}
+      clientId={clientId}
+      ownerId={ownerId || -1}
+      handleChangeText={handleChangeText}
     />);
   };
 
@@ -80,7 +199,7 @@ export const TableEditor: React.FC = () => {
       <h2>Collaborative Table Editor</h2>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, auto)', gap: '10px' }}>
         {table.map((row, i) =>
-          row.map((_, j) => makeCell(i, j))
+          row.map((cell, j) => makeCell(cell, i, j))
         )}
       </div>
     </div>
