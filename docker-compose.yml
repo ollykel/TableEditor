@@ -2,16 +2,25 @@ name: table_editor
 
 services:
   web_socket_server:
+    # Handles web sockets for providing real-time interaction with clients.
+    # Built in Rust.
     container_name: web_socket_server
     build: WebSocketServer
     ports:
       - ${TABLE_EDITOR_WS_PORT-8080}:8080
+    environment:
+      TABLE_EDITOR_WS_PORT: ${TABLE_EDITOR_WS_PORT-4000}
+      TABLE_EDITOR_FRONTEND_PORT: ${TABLE_EDITOR_FRONTEND_PORT-3000}
   
   frontend:
+    # Frontend code to serve to client.
+    # Built using Vite, served with nginx
     container_name: frontend
     build: Frontend
     depends_on:
       - web_socket_server
     ports:
-      - ${TABLE_EDITOR_HTTP_PORT-3000}:80
-
+      - ${TABLE_EDITOR_HTTP_PORT-3000}:3000
+    environment:
+      TABLE_EDITOR_WS_PORT: ${TABLE_EDITOR_WS_PORT-4000}
+      TABLE_EDITOR_FRONTEND_PORT: ${TABLE_EDITOR_FRONTEND_PORT-3000}
