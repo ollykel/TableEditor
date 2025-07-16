@@ -70,7 +70,7 @@ async fn main() {
     let table: SharedTable = Arc::new((0..3)
         .map(|_| {
             (0..3).map(|_| Arc::new(Mutex::new(TableCell {
-                text: String::from("Hallo Welt"),
+                text: String::new(),
                 lock: None
             }))).collect()
         }).collect());
