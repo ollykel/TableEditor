@@ -1,4 +1,3 @@
-version: '3.8'
 name: table_editor
 
 services:
@@ -15,7 +14,15 @@ services:
       TABLE_EDITOR_WS_PORT: ${TABLE_EDITOR_WS_PORT-4000}
     depends_on:
       - frontend
+      - rest_api
       - web_socket_server
+
+  rest_api:
+    # Provides a RESTful API for interfacing with the database.
+    container_name: rest_api
+    build: RestAPI
+    depends_on:
+      - database
 
   web_socket_server:
     # Handles web sockets for providing real-time interaction with clients.
