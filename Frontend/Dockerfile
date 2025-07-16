@@ -25,9 +25,8 @@ RUN rm -rf /usr/share/nginx/html/*
 # Copy built assets from builder
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy start script from builder
-WORKDIR /app
-COPY --from=builder /app/start.sh /app/start.sh
+# Copy nginx.conf
+COPY nginx.conf /etc/nginx/nginx.conf
 
 # Run start script
-CMD ["/app/start.sh"]
+CMD ["nginx", "-g", "daemon off;"]

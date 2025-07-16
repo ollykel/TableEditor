@@ -1,5 +1,4 @@
 use std::{
-    env,
     net::SocketAddr,
     sync::Arc,
     thread,
@@ -66,15 +65,8 @@ type SharedClientId = Arc<Mutex<u64>>;
 
 #[tokio::main]
 async fn main() {
-    // Values derived from environment
-    let port_env = "TABLE_EDITOR_WS_PORT";
-    let port : u16 = match env::var(port_env) {
-        Ok(val_s) => match val_s.parse::<u16>() {
-            Ok(val) => val,
-            Err(e) => panic!("Could not parse {} value {}: {}", port_env, val_s, e)
-        },
-        Err(e) => panic!("Could not find {}: {}", port_env, e)
-    };
+    // All services serve on port 3000 by default
+    let port = 3000u16;
     let table: SharedTable = Arc::new((0..3)
         .map(|_| {
             (0..3).map(|_| Arc::new(Mutex::new(TableCell {
