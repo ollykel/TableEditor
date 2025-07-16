@@ -36,7 +36,34 @@ http {
 
     server {
         listen 8080;
-        server_name localhost;
+        server_name _;
+
+        # WebSocket route
+        location /ws {
+            proxy_pass http://web_socket_server:${TABLE_EDITOR_WS_PORT}/ws;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade \$http_upgrade;
+            proxy_set_header Connection \$connection_upgrade;
+            proxy_set_header Host \$host;
+        }
+
+        # All other traffic
+        location / {
+            proxy_pass http://frontend:${TABLE_EDITOR_FRONTEND_PORT};
+            proxy_http_version 1.1;
+            proxy_set_header Host \$host;
+        }
+    }
+
+    server {
+        listen 4430 ssl;
+        server_name _;
+
+        ssl_certificate       /app/cert.pem;
+        ssl_certificate_key   /app/key.pem;
+
+        ssl_protocols       TLSv1.2 TLSv1.3;
+        ssl_ciphers         HIGH:!aNULL:!MD5;
 
         # WebSocket route
         location /ws {

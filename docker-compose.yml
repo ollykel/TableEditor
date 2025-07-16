@@ -9,6 +9,7 @@ services:
     build: ReverseProxy
     ports:
       - ${TABLE_EDITOR_HTTP_PORT-8080}:8080
+      - ${TABLE_EDITOR_HTTPS_PORT-4430}:4430
     environment:
       TABLE_EDITOR_FRONTEND_PORT: ${TABLE_EDITOR_FRONTEND_PORT-3000}
       TABLE_EDITOR_WS_PORT: ${TABLE_EDITOR_WS_PORT-4000}
