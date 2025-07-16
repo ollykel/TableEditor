@@ -25,3 +25,6 @@ dist-ssr
 
 # Rust/Cargo
 /WebSocketServer/target/
+
+# Environment
+.env
