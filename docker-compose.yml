@@ -1,3 +1,4 @@
+version: '3.8'
 name: table_editor
 
 services:
@@ -11,6 +12,9 @@ services:
     environment:
       TABLE_EDITOR_FRONTEND_PORT: ${TABLE_EDITOR_FRONTEND_PORT-3000}
       TABLE_EDITOR_WS_PORT: ${TABLE_EDITOR_WS_PORT-4000}
+    depends_on:
+      - frontend
+      - web_socket_server
 
   web_socket_server:
     # Handles web sockets for providing real-time interaction with clients.
@@ -22,6 +26,8 @@ services:
     environment:
       TABLE_EDITOR_FRONTEND_PORT: ${TABLE_EDITOR_FRONTEND_PORT-3000}
       TABLE_EDITOR_WS_PORT: ${TABLE_EDITOR_WS_PORT-4000}
+    depends_on:
+      - database
   
   frontend:
     # Frontend code to serve to client.
@@ -33,3 +39,23 @@ services:
     environment:
       TABLE_EDITOR_FRONTEND_PORT: ${TABLE_EDITOR_FRONTEND_PORT-3000}
       TABLE_EDITOR_WS_PORT: ${TABLE_EDITOR_WS_PORT-4000}
+
+  database:
+    # PostgreSQL database
+    container_name: database
+    build: Database
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  db-data:
