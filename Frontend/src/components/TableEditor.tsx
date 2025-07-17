@@ -11,7 +11,7 @@ import { useWebSocket } from '@/context/WebSocketContext';
 import { TableCell as CellComponent } from './TableCell';
 
 const WS_SCHEME = window.location.protocol === 'https:' ? 'wss' : 'ws';
-const WS_URI = `${WS_SCHEME}://${window.location.host}/ws`;
+const WS_URI = `${WS_SCHEME}://${window.location.host}/ws/1`;
 
 type TableCellData = { text: string; owner_id?: number };
 
