@@ -1,5 +1,6 @@
 package com.example.hello.entity;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import java.util.List;
 
@@ -20,6 +21,7 @@ public class TableEntity {
     @Column(nullable = false)
     private int height;
 
+    @JsonManagedReference
     @OneToMany(mappedBy = "table", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TableCell> cells;
 

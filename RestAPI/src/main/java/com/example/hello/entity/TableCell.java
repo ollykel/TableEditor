@@ -1,5 +1,6 @@
 package com.example.hello.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import java.io.Serializable;
 import java.util.Objects;
@@ -10,6 +11,7 @@ import java.util.Objects;
 public class TableCell {
 
     @Id
+    @JsonBackReference
     @ManyToOne
     @JoinColumn(name = "table_id", nullable = false)
     private TableEntity table;
