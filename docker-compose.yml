@@ -23,6 +23,10 @@ services:
     build: RestAPI
     depends_on:
       - database
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
 
   web_socket_server:
     # Handles web sockets for providing real-time interaction with clients.
