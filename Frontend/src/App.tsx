@@ -41,15 +41,19 @@ const TableList = () => {
   } else if (isPending) {
     return (<p>Waiting...</p>);
   } else {
-    return (
-      <ul id="table-list">
-        {(tables as TableProps[]).map(table => (
-          <li key={table.id}>
-            <Table {...table} />
-          </li>
-        ))}
-      </ul>
-    );
+    if (tables.length < 1) {
+      return <p>No tables to show</p>
+    } else {
+      return (
+        <ul id="table-list">
+          {(tables as TableProps[]).map(table => (
+            <li key={table.id}>
+              <Table {...table} />
+            </li>
+          ))}
+        </ul>
+      );
+    }
   }
 };
 
