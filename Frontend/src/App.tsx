@@ -1,14 +1,67 @@
 import './App.css'
 
+import {
+  QueryClient,
+  QueryClientProvider,
+  useQuery
+} from '@tanstack/react-query';
+
 import { WebSocketProvider } from '@/context/WebSocketContext';
 
-import { TableEditor } from '@/components/TableEditor';
+interface TableProps {
+  id: number;
+  name: string;
+  width: number;
+  height: number;
+}
+
+const Table = ({ id, name, width, height }: TableProps): React.JSX.Element => {
+  return (
+    <div id={`table-${id}`}>
+      <h2>{name}</h2>
+      <p>{height} X {width}</p>
+    </div>
+  );
+};
+
+const TableList = () => {
+  const { isPending, error, data: tables, isFetching } = useQuery({
+    queryKey: ['tables'],
+    queryFn: async () => {
+      const response = await fetch('/api/v1/tables');
+
+      return await response.json();
+    }
+  });
+
+  if (error) {
+    return (<p>Error: {`${error}`}</p>);
+  } else if (isFetching) {
+    return (<p>Fetching tables...</p>);
+  } else if (isPending) {
+    return (<p>Waiting...</p>);
+  } else {
+    return (
+      <ul id="table-list">
+        {(tables as TableProps[]).map(table => (
+          <li key={table.id}>
+            <Table {...table} />
+          </li>
+        ))}
+      </ul>
+    );
+  }
+};
 
 function App() {
+  const queryClient = new QueryClient();
+
   return (
     <>
       <WebSocketProvider>
-        <TableEditor />
+        <QueryClientProvider client={queryClient}>
+          <TableList />
+        </QueryClientProvider>
       </WebSocketProvider>
     </>
   )
