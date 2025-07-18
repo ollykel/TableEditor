@@ -3,7 +3,8 @@ use std::{
     sync::Arc,
     thread,
     time::Duration,
-    collections::HashMap
+    collections::HashMap,
+    env
 };
 
 use futures::{
@@ -16,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 use warp::ws::{Message, WebSocket};
 use warp::Filter;
+use tokio_postgres as postgres;
 
 // === CellLockData ===============================================================================
 //
@@ -70,19 +72,97 @@ type SharedClientId = Arc<Mutex<u64>>;
 async fn main() {
     // All services serve on port 3000 by default
     let port = 3000u16;
-    let shared_tables = Arc::new(Mutex::new(HashMap::<i64, SharedTable>::new()));
-    let table: SharedTable = Arc::new((0..3)
-        .map(|_| {
-            (0..3).map(|_| Arc::new(Mutex::new(TableCell {
-                text: String::new(),
-                lock: None
-            }))).collect()
-        }).collect());
-
-    // TODO: replace with dynamic calls to add tables
-    shared_tables.lock().await.insert(1, Arc::clone(&table));
+    let shared_tables = Arc::new(Mutex::new(HashMap::<TableId, SharedTable>::new()));
     let next_client_id: SharedClientId = Arc::new(Mutex::new(0u64));
     let (tx, _rx) = broadcast::channel::<ClientMessage>(100);
+
+    // Configure database client
+    let (db_user, db_dbname, db_pass) = match (env::var("POSTGRES_USER"), env::var("POSTGRES_DB"), env::var("POSTGRES_PASSWORD")) {
+        (Ok(user), Ok(dbname), Ok(pass)) => (user, dbname, pass),
+        (e_user, e_dbname, e_pass) => {
+            if let Err(e) = e_user {
+                eprintln!("Could not get POSTGRES_USER: {}", e);
+            }
+            if let Err(e) = e_dbname {
+                eprintln!("Could not get POSTGRES_DB: {}", e);
+            }
+            if let Err(e) = e_pass {
+                eprintln!("Could not get POSTGRES_PASSWORD: {}", e);
+            }
+            return;
+        }
+    };
+    let conn_str = format!("host=database user={} dbname={} password={}", db_user, db_dbname, db_pass);
+    let (db_cli, db_conn) = match postgres::connect(conn_str.as_str(), postgres::NoTls).await {
+        Ok(cli) => cli,
+        Err(e) => {
+            eprintln!("ERROR: could not connect to database -- {}", e);
+            return;
+        }
+    };
+
+    tokio::spawn(async move {
+        if let Err(e) = db_conn.await {
+            eprintln!("database connection error: {}", e);
+        };
+    });
+
+    let (table, table_width, table_height) = {
+        // Test database query.
+        let rows = match db_cli.query("SELECT id, name, width, height FROM tables LIMIT 1", &[]).await {
+            Ok(rows) => rows,
+            Err(e) => {
+                eprintln!("Could not query database: {}", e);
+                return;
+            }
+        };
+
+        let (table_id, _table_name, width, height) = if let Some(row) = rows.first() {
+            let id : TableId = row.get(0);
+            let name : &str = row.get(1);
+            let width : i32 = row.get(2);
+            let height : i32 = row.get(3);
+
+            (id, String::from(name), width, height)
+        } else {
+            eprintln!("ERROR: no tables in database");
+            return;
+        };
+
+        let width = width as usize;
+        let height = height as usize;
+
+        // Get cells within table
+        let rows = match db_cli.query("SELECT row_num, column_num, text FROM table_cells WHERE table_id = $1", &[&table_id]).await {
+            Ok(rows) => rows,
+            Err(e) => {
+                eprintln!("ERROR: could not fetch cells for table {:?} -- {}", table_id, e);
+                return;
+            }
+        };
+
+        let mut table_data = vec![ vec![ String::new(); width as usize ]; height as usize ];
+
+        for row in rows {
+            let i_row : i32 = row.get(0);
+            let i_col : i32 = row.get(1);
+            let text : &str = row.get(2);
+
+            table_data[i_row as usize][i_col as usize] = String::from(text);
+        }// end for row in rows
+
+        let table: SharedTable = Arc::new((0..height)
+            .map(|i_row| {
+                (0..width).map(|i_col| Arc::new(Mutex::new(TableCell {
+                    text: table_data[i_row][i_col].clone(),
+                    lock: None
+                }))).collect()
+            }).collect());
+
+        (table, width, height)
+    };
+
+    shared_tables.lock().await.insert(1, Arc::clone(&table));
 
     {
         let table_clone = Arc::clone(&table);
@@ -91,8 +171,8 @@ async fn main() {
         thread::spawn(move || {
             block_on(async move {
                 loop {
-                    for row in 0..3 {
-                        for col in 0..3 {
+                    for row in 0..table_height {
+                        for col in 0..table_width {
                             let mut cell = table_clone[row][col].lock().await;
                             let mut to_reset = false;
                             if let Some(ref mut lock) = cell.lock {
@@ -130,7 +210,7 @@ async fn main() {
         move || tx.clone()
     });
 
-    let ws_route = warp::path!("ws" / i64)
+    let ws_route = warp::path!("ws" / TableId)
         .and(warp::ws())
         .and(shared_tables_filter)
         .and(next_client_id_filter)

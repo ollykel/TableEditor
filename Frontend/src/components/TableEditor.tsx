@@ -195,10 +195,12 @@ export const TableEditor: React.FC = () => {
     />);
   };
 
+  const nCols = table.length > 0 ? table[0].length : 0;
+
   return (
     <div>
       <h2>Collaborative Table Editor</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, auto)', gap: '10px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${nCols}, auto)`, gap: '10px' }}>
         {table.map((row, i) =>
           row.map((cell, j) => makeCell(cell, i, j))
         )}
