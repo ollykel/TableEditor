@@ -2,72 +2,27 @@ import './App.css'
 
 import {
   QueryClient,
-  QueryClientProvider,
-  useQuery
+  QueryClientProvider
 } from '@tanstack/react-query';
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
-import { WebSocketProvider } from '@/context/WebSocketContext';
+import HomePage from '@/pages/HomePage';
+import TablePage from '@/pages/TablePage';
 
-interface TableProps {
-  id: number;
-  name: string;
-  width: number;
-  height: number;
-}
-
-const Table = ({ id, name, width, height }: TableProps): React.JSX.Element => {
-  return (
-    <div id={`table-${id}`}>
-      <h2>{name}</h2>
-      <p>{height} X {width}</p>
-    </div>
-  );
-};
-
-const TableList = () => {
-  const { isPending, error, data: tables, isFetching } = useQuery({
-    queryKey: ['tables'],
-    queryFn: async () => {
-      const response = await fetch('/api/v1/tables');
-
-      return await response.json();
-    }
-  });
-
-  if (error) {
-    return (<p>Error: {`${error}`}</p>);
-  } else if (isFetching) {
-    return (<p>Fetching tables...</p>);
-  } else if (isPending) {
-    return (<p>Waiting...</p>);
-  } else {
-    if (tables.length < 1) {
-      return <p>No tables to show</p>
-    } else {
-      return (
-        <ul id="table-list">
-          {(tables as TableProps[]).map(table => (
-            <li key={table.id}>
-              <Table {...table} />
-            </li>
-          ))}
-        </ul>
-      );
-    }
-  }
-};
 
 function App() {
   const queryClient = new QueryClient();
 
   return (
-    <>
-      <WebSocketProvider>
-        <QueryClientProvider client={queryClient}>
-          <TableList />
-        </QueryClientProvider>
-      </WebSocketProvider>
-    </>
+    <QueryClientProvider client={queryClient}>
+      <Router>
+        <Routes>
+          {/** public **/}
+          <Route path="/" element={<HomePage />} />
+          <Route path="/tables/:tableId" element={<TablePage />} />
+        </Routes>
+      </Router>
+    </QueryClientProvider>
   )
 }
 

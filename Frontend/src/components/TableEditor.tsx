@@ -10,9 +10,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useWebSocket } from '@/context/WebSocketContext';
 import { TableCell as CellComponent } from './TableCell';
 
-const WS_SCHEME = window.location.protocol === 'https:' ? 'wss' : 'ws';
-const WS_URI = `${WS_SCHEME}://${window.location.host}/ws/1`;
-
 type TableCellData = { text: string; owner_id?: number };
 
 // Define the types for incoming and outgoing messages
@@ -86,13 +83,20 @@ const mutateString = (olds: string, diff: StrDiff): string => {
   return outs;
 };// end const mutateString = (olds: string, diff: StrDiff): string
 
-export const TableEditor: React.FC = () => {
+interface TableEditorProps {
+  tableId: number;
+}
+
+export const TableEditor: React.FC<TableEditorProps> = (props: TableEditorProps) => {
+  const { tableId } = props;
   const { socket, connect, isConnected } = useWebSocket();
   const [table, setTable] = useState<TableCellData[][]>(
     Array.from({ length: 3 }, () => Array(3).fill({ text: '', owner_id: -1 }))
   );
   const [clientId, setClientId] = useState<number>(-1);
   const clientIdRef = useRef<number>(clientId);
+  const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  const wsUri = `${wsScheme}://${window.location.host}/ws/${tableId}`;
 
   useEffect(() => {
     clientIdRef.current = clientId;
@@ -166,7 +170,7 @@ export const TableEditor: React.FC = () => {
 
   useEffect(() => {
     if (!isConnected) {
-      connect(WS_URI, handleMessage);
+      connect(wsUri, handleMessage);
     }
   }, [isConnected, connect]);
 
@@ -208,3 +212,5 @@ export const TableEditor: React.FC = () => {
     </div>
   );
 };
+
+export default TableEditor;
