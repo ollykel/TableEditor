@@ -35,6 +35,11 @@ public class TableController {
         return tableRepository.save(table);
     }
 
+    @GetMapping("{id}")
+    public Optional<TableEntity> getTableById(@PathVariable("id") Long tableId) {
+      return this.tableRepository.findById(tableId);
+    }
+
     @GetMapping("{id}/cells")
     public List<TableCell> getCellsByTableId(@PathVariable("id") Long tableId) {
       return this.tableCellRepository.findByTableId(tableId);
