@@ -33,14 +33,17 @@ const AddTableForm = (props: AddTableFormProps) => {
         {...register('name', { required: 'Name is required' })}
         placeholder="Name"
       />
+      {errors.name && <span>{errors.name.message}</span>}
       <input
         {...register('width', { required: 'Width is required' })}
         placeholder="Width"
       />
+      {errors.width && <span>{errors.width.message}</span>}
       <input
         {...register('height', { required: 'Height is required' })}
         placeholder="Height"
       />
+      {errors.height && <span>{errors.height.message}</span>}
       <button type="submit">Add Table</button>
     </form>
   );
