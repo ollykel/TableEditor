@@ -36,6 +36,13 @@ struct CellLockData {
     duration_secs: u32
 }
 
+#[derive(Clone, Debug)]
+struct TableCellData {
+    text: String
+}
+
+type TableData = Vec<Vec<TableCellData>>;
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct TableCell {
     text: String,
@@ -65,7 +72,7 @@ enum ClientMessage {
     ReleaseLock { cell: (usize, usize) },
 }
 
-type SharedTable = Arc<Vec<Vec<Arc<Mutex<TableCell>>>>>;
+type SharedTable = Arc<Vec<Vec<Mutex<TableCell>>>>;
 type TableId = i64;// corresponds to Postgres BIGINT
 type SharedTablesMap = Arc<Mutex<HashMap<TableId, SharedTable>>>;
 type SharedClientId = Arc<Mutex<u64>>;
@@ -121,10 +128,10 @@ async fn fetch_table(db_cli: &postgres::Client, table_id: TableId) -> Result<Sha
 
     let table: SharedTable = Arc::new((0..height)
         .map(|i_row| {
-            (0..width).map(|i_col| Arc::new(Mutex::new(TableCell {
+            (0..width).map(|i_col| Mutex::new(TableCell {
                 text: table_data[i_row][i_col].clone(),
                 lock: None
-            }))).collect()
+            })).collect()
         }).collect());
 
     Ok(table)
@@ -215,10 +222,10 @@ async fn main() {
 
         let table: SharedTable = Arc::new((0..height)
             .map(|i_row| {
-                (0..width).map(|i_col| Arc::new(Mutex::new(TableCell {
+                (0..width).map(|i_col| Mutex::new(TableCell {
                     text: table_data[i_row][i_col].clone(),
                     lock: None
-                }))).collect()
+                })).collect()
             }).collect());
 
         (table, width, height)
