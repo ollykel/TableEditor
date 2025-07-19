@@ -71,7 +71,7 @@ const TableList = () => {
     }
   });
 
-  const addTable = (tableData: AddTableForm): void => {
+  const addTable = (tableData: AddTableFormData): void => {
     fetch('/api/v1/tables', {
       method: 'POST',
       headers: {
