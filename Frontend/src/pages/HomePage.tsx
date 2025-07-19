@@ -1,7 +1,12 @@
 import type TableProps from '@/types/TableProps';
 
 import { Link } from 'react-router';
-import { useQuery } from '@tanstack/react-query';
+import {
+  useQuery,
+  useQueryClient
+} from '@tanstack/react-query';
+
+import Modal from '@/components/Modal';
 
 const Table = ({ id, name, width, height }: TableProps): React.JSX.Element => {
   return (
@@ -15,6 +20,7 @@ const Table = ({ id, name, width, height }: TableProps): React.JSX.Element => {
 };
 
 const TableList = () => {
+  const queryClient = useQueryClient();
   const { isPending, error, data: tables, isFetching } = useQuery({
     queryKey: ['tables'],
     queryFn: async () => {
@@ -35,13 +41,23 @@ const TableList = () => {
       return <p>No tables to show</p>
     } else {
       return (
-        <ul id="table-list">
-          {(tables as TableProps[]).map(table => (
-            <li key={table.id}>
-              <Table {...table} />
-            </li>
-          ))}
-        </ul>
+        <div>
+          <ul id="table-list">
+            {(tables as TableProps[]).map(table => (
+              <li key={table.id}>
+                <Table {...table} />
+              </li>
+            ))}
+          </ul>
+          <Modal title="New Table" buttonLabel="+ Add Table" buttonClassName="hover:cursor-pointer">
+            <p>Create a new table.</p>
+            <button className="hover:cursor-pointer" onClick={() => { queryClient.invalidateQueries({
+              queryKey: ['tables']
+            }); }}>
+              Add Table
+            </button>
+          </Modal>
+        </div>
       );
     }
   }
