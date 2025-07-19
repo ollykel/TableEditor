@@ -32,7 +32,18 @@ public class TableController {
 
     @PostMapping
     public TableEntity createTable(@RequestBody TableEntity table) {
-        return tableRepository.save(table);
+      // Initialize blank cells
+      TableEntity out = this.tableRepository.save(table);
+
+      for (int i_row = 0; i_row < table.getHeight(); ++i_row) {
+        for (int i_col = 0; i_col < table.getWidth(); ++i_col) {
+          TableCell cell = new TableCell(out, i_row, i_col, "");
+
+          this.tableCellRepository.save(cell);
+        }// end for (int i_col = 0; i_col < table.getWidth(); ++i_col)
+      }// end for (int i_row = 0; i_row < table.getHeight(); ++i_row)
+
+      return out;
     }
 
     @GetMapping("{id}")
