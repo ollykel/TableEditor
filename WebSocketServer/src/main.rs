@@ -4,7 +4,9 @@ use std::{
     thread,
     time::Duration,
     collections::HashMap,
-    env
+    env,
+    error::Error,
+    fmt
 };
 
 use futures::{
@@ -67,6 +69,66 @@ type SharedTable = Arc<Vec<Vec<Arc<Mutex<TableCell>>>>>;
 type TableId = i64;// corresponds to Postgres BIGINT
 type SharedTablesMap = Arc<Mutex<HashMap<TableId, SharedTable>>>;
 type SharedClientId = Arc<Mutex<u64>>;
+
+#[derive(Debug, Clone, Copy)]
+struct NoTableError {
+    table_id: TableId
+}
+
+impl NoTableError {
+    fn new(table_id: TableId) -> Self {
+        Self { table_id: table_id }
+    }
+}
+
+impl fmt::Display for NoTableError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "no table with id = {}", self.table_id)
+    }
+}
+
+impl Error for NoTableError {}
+
+async fn fetch_table(db_cli: &postgres::Client, table_id: TableId) -> Result<SharedTable, Box<dyn Error>> {
+    let rows = db_cli.query("SELECT name, width, height FROM tables WHERE id = $1", &[&table_id]).await?;
+
+    let (width, height) = if let Some(row) = rows.first() {
+        let id : TableId = row.get(0);
+        let name : &str = row.get(1);
+        let width : i32 = row.get(2);
+        let height : i32 = row.get(3);
+
+        (width, height)
+    } else {
+        return Err(Box::new(NoTableError::new(table_id)))
+    };
+
+    let width = width as usize;
+    let height = height as usize;
+
+    // Get cells within table
+    let rows = db_cli.query("SELECT row_num, column_num, text FROM table_cells WHERE table_id = $1", &[&table_id]).await?;
+
+    let mut table_data = vec![ vec![ String::new(); width as usize ]; height as usize ];
+
+    for row in rows {
+        let i_row : i32 = row.get(0);
+        let i_col : i32 = row.get(1);
+        let text : &str = row.get(2);
+
+        table_data[i_row as usize][i_col as usize] = String::from(text);
+    }// end for row in rows
+
+    let table: SharedTable = Arc::new((0..height)
+        .map(|i_row| {
+            (0..width).map(|i_col| Arc::new(Mutex::new(TableCell {
+                text: table_data[i_row][i_col].clone(),
+                lock: None
+            }))).collect()
+        }).collect());
+
+    Ok(table)
+}
 
 #[tokio::main]
 async fn main() {
