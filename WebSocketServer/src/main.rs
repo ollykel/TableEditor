@@ -280,7 +280,7 @@ async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_
 
                     thread::spawn(move || {
                         block_on(async move {
-                            while shared_table_clone.client_count.load(atomic::Ordering::Relaxed) > 0 {
+                            loop {
                                 for row in 0..table_height {
                                     for col in 0..table_width {
                                         let mut cell = shared_table_clone.cells[row][col].lock().await;
