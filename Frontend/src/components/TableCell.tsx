@@ -34,6 +34,7 @@ export const TableCell: React.FC<TableCellProps> = ({ text, clientId, ownerId, h
 
   return (
     <textarea
+      className="disabled:bg-gray-200 resize-none m-5"
       rows={3}
       cols={30}
       value={text}
