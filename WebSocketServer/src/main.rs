@@ -16,8 +16,8 @@ use std::{
 use futures::{
     SinkExt,
     StreamExt,
-    lock::Mutex
-    // executor::block_on
+    lock::Mutex,
+    executor::block_on
 };
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
@@ -270,6 +270,41 @@ async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_
                     client_count: AtomicU32::new(0u32),
                     sender: tx.clone()
                 });
+
+                // lock manager thread
+                {
+                    let shared_table_clone = Arc::clone(&shared_table_new);
+                    let table_height = shared_table_clone.cells.len();
+                    let table_width = shared_table_clone.cells.first().unwrap().len();
+                    let tx_clone = tx.clone();
+
+                    thread::spawn(move || {
+                        block_on(async move {
+                            while shared_table_clone.client_count.load(atomic::Ordering::Relaxed) > 0 {
+                                for row in 0..table_height {
+                                    for col in 0..table_width {
+                                        let mut cell = shared_table_clone.cells[row][col].lock().await;
+                                        let mut to_reset = false;
+                                        if let Some(ref mut lock) = cell.lock {
+                                            if lock.duration_secs < 2 {
+                                                to_reset = true;
+                                            } else {
+                                                lock.duration_secs -= 1;
+                                            }
+                                        }
+                                        if to_reset {
+                                            eprintln!("Resetting lock ({}, {})", row, col);
+                                            cell.lock = None;
+                                            let _ = tx_clone.send(ClientMessage::ReleaseLock { cell: (row, col) });
+                                        }
+                                    }
+                                }
+                                thread::sleep(Duration::from_secs(1));
+                            }
+                        });
+                    });
+                }
+
                 shared_table = Some(Arc::clone(&shared_table_new));
                 let mut shared_tables = shared_tables.lock().await;
                 shared_tables.insert(table_id, Arc::clone(&shared_table_new));
