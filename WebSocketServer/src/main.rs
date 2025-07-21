@@ -1,6 +1,10 @@
 use std::{
     net::SocketAddr,
-    sync::Arc,
+    sync::{
+        Arc,
+        atomic,
+        atomic::AtomicU32
+    },
     thread,
     time::Duration,
     collections::HashMap,
@@ -12,8 +16,8 @@ use std::{
 use futures::{
     SinkExt,
     StreamExt,
-    lock::Mutex,
-    executor::block_on
+    lock::Mutex
+    // executor::block_on
 };
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
@@ -72,9 +76,14 @@ enum ClientMessage {
     ReleaseLock { cell: (usize, usize) },
 }
 
-type SharedTable = Arc<Vec<Vec<Mutex<TableCell>>>>;
+type SharedTableCells = Vec<Vec<Mutex<TableCell>>>;
+struct SharedTable {
+    cells: Vec<Vec<Mutex<TableCell>>>,
+    client_count: AtomicU32,
+    sender: broadcast::Sender<ClientMessage>
+}
+type SharedTablesMap = Arc<Mutex<HashMap<TableId, Arc<SharedTable>>>>;
 type TableId = i64;// corresponds to Postgres BIGINT
-type SharedTablesMap = Arc<Mutex<HashMap<TableId, SharedTable>>>;
 type SharedClientId = Arc<Mutex<u64>>;
 
 #[derive(Debug, Clone, Copy)]
@@ -96,25 +105,29 @@ impl fmt::Display for NoTableError {
 
 impl Error for NoTableError {}
 
-async fn fetch_table(db_cli: &postgres::Client, table_id: TableId) -> Result<SharedTable, Box<dyn Error>> {
-    let rows = db_cli.query("SELECT name, width, height FROM tables WHERE id = $1", &[&table_id]).await?;
+async fn fetch_table(db_cli: &postgres::Client, table_id: TableId) -> Result<SharedTableCells, NoTableError> {
+    let rows = match db_cli.query("SELECT width, height FROM tables WHERE id = $1", &[&table_id]).await {
+        Err(_) => { return Err(NoTableError::new(table_id)); },
+        Ok(rows) => rows
+    };
 
     let (width, height) = if let Some(row) = rows.first() {
-        let id : TableId = row.get(0);
-        let name : &str = row.get(1);
-        let width : i32 = row.get(2);
-        let height : i32 = row.get(3);
+        let width : i32 = row.get(0);
+        let height : i32 = row.get(1);
 
         (width, height)
     } else {
-        return Err(Box::new(NoTableError::new(table_id)))
+        return Err(NoTableError::new(table_id))
     };
 
     let width = width as usize;
     let height = height as usize;
 
     // Get cells within table
-    let rows = db_cli.query("SELECT row_num, column_num, text FROM table_cells WHERE table_id = $1", &[&table_id]).await?;
+    let rows = match db_cli.query("SELECT row_num, column_num, text FROM table_cells WHERE table_id = $1", &[&table_id]).await {
+        Err(_) => { return Err(NoTableError::new(table_id)); },
+        Ok(rows) => rows
+    };
 
     let mut table_data = vec![ vec![ String::new(); width as usize ]; height as usize ];
 
@@ -126,24 +139,34 @@ async fn fetch_table(db_cli: &postgres::Client, table_id: TableId) -> Result<Sha
         table_data[i_row as usize][i_col as usize] = String::from(text);
     }// end for row in rows
 
-    let table: SharedTable = Arc::new((0..height)
+    let table: SharedTableCells = (0..height)
         .map(|i_row| {
             (0..width).map(|i_col| Mutex::new(TableCell {
                 text: table_data[i_row][i_col].clone(),
                 lock: None
             })).collect()
-        }).collect());
+        }).collect();
 
     Ok(table)
 }
+
+// === Pseudocode =================================================================================
+//
+// Table:
+//  - MutexLockedCells[][]
+//  - client_count
+//  - broadcast_channel
+//  - lock_manager_thread_handle
+// TableMap: TableId => Table
+//
+// ================================================================================================
 
 #[tokio::main]
 async fn main() {
     // All services serve on port 3000 by default
     let port = 3000u16;
-    let shared_tables = Arc::new(Mutex::new(HashMap::<TableId, SharedTable>::new()));
+    let shared_tables = Arc::new(Mutex::new(HashMap::<TableId, Arc<SharedTable>>::new()));
     let next_client_id: SharedClientId = Arc::new(Mutex::new(0u64));
-    let (tx, _rx) = broadcast::channel::<ClientMessage>(100);
 
     // Configure database client
     let (db_user, db_dbname, db_pass) = match (env::var("POSTGRES_USER"), env::var("POSTGRES_DB"), env::var("POSTGRES_PASSWORD")) {
@@ -163,7 +186,7 @@ async fn main() {
     };
     let conn_str = format!("host=database user={} dbname={} password={}", db_user, db_dbname, db_pass);
     let (db_cli, db_conn) = match postgres::connect(conn_str.as_str(), postgres::NoTls).await {
-        Ok(cli) => cli,
+        Ok((cli, conn)) => (Arc::new(Mutex::new(cli)), conn),
         Err(e) => {
             eprintln!("ERROR: could not connect to database -- {}", e);
             return;
@@ -176,97 +199,14 @@ async fn main() {
         };
     });
 
-    let (table, table_width, table_height) = {
-        // Test database query.
-        let rows = match db_cli.query("SELECT id, name, width, height FROM tables LIMIT 1", &[]).await {
-            Ok(rows) => rows,
-            Err(e) => {
-                eprintln!("Could not query database: {}", e);
-                return;
-            }
-        };
-
-        let (table_id, _table_name, width, height) = if let Some(row) = rows.first() {
-            let id : TableId = row.get(0);
-            let name : &str = row.get(1);
-            let width : i32 = row.get(2);
-            let height : i32 = row.get(3);
-
-            (id, String::from(name), width, height)
-        } else {
-            eprintln!("ERROR: no tables in database");
-            return;
-        };
-
-        let width = width as usize;
-        let height = height as usize;
-
-        // Get cells within table
-        let rows = match db_cli.query("SELECT row_num, column_num, text FROM table_cells WHERE table_id = $1", &[&table_id]).await {
-            Ok(rows) => rows,
-            Err(e) => {
-                eprintln!("ERROR: could not fetch cells for table {:?} -- {}", table_id, e);
-                return;
-            }
-        };
-
-        let mut table_data = vec![ vec![ String::new(); width as usize ]; height as usize ];
-
-        for row in rows {
-            let i_row : i32 = row.get(0);
-            let i_col : i32 = row.get(1);
-            let text : &str = row.get(2);
-
-            table_data[i_row as usize][i_col as usize] = String::from(text);
-        }// end for row in rows
-
-        let table: SharedTable = Arc::new((0..height)
-            .map(|i_row| {
-                (0..width).map(|i_col| Mutex::new(TableCell {
-                    text: table_data[i_row][i_col].clone(),
-                    lock: None
-                })).collect()
-            }).collect());
-
-        (table, width, height)
-    };
-
-    shared_tables.lock().await.insert(1, Arc::clone(&table));
-
-    {
-        let table_clone = Arc::clone(&table);
-        let tx_clone = tx.clone();
-
-        thread::spawn(move || {
-            block_on(async move {
-                loop {
-                    for row in 0..table_height {
-                        for col in 0..table_width {
-                            let mut cell = table_clone[row][col].lock().await;
-                            let mut to_reset = false;
-                            if let Some(ref mut lock) = cell.lock {
-                                if lock.duration_secs < 2 {
-                                    to_reset = true;
-                                } else {
-                                    lock.duration_secs -= 1;
-                                }
-                            }
-                            if to_reset {
-                                eprintln!("Resetting lock ({}, {})", row, col);
-                                cell.lock = None;
-                                let _ = tx_clone.send(ClientMessage::ReleaseLock { cell: (row, col) });
-                            }
-                        }
-                    }
-                    thread::sleep(Duration::from_secs(1));
-                }
-            });
-        });
-    }
-
     let shared_tables_filter = warp::any().map({
         let shared_tables = Arc::clone(&shared_tables);
         move || Arc::clone(&shared_tables)
+    });
+
+    let db_cli_filter = warp::any().map({
+        let db_cli = Arc::clone(&db_cli);
+        move || Arc::clone(&db_cli)
     });
 
     let next_client_id_filter = warp::any().map({
@@ -274,18 +214,13 @@ async fn main() {
         move || Arc::clone(&next_client_id)
     });
 
-    let tx_filter = warp::any().map({
-        let tx = tx.clone();
-        move || tx.clone()
-    });
-
     let ws_route = warp::path!("ws" / TableId)
         .and(warp::ws())
         .and(shared_tables_filter)
+        .and(db_cli_filter)
         .and(next_client_id_filter)
-        .and(tx_filter)
-        .map(|table_id, ws: warp::ws::Ws, shared_tables, next_client_id, tx| {
-            ws.on_upgrade(move |socket| handle_connection(socket, table_id, shared_tables, next_client_id, tx))
+        .map(|table_id, ws: warp::ws::Ws, shared_tables, db_cli, next_client_id| {
+            ws.on_upgrade(move |socket| handle_connection(socket, shared_tables, table_id, db_cli, next_client_id))
         });
 
     let addr: SocketAddr = ([0, 0, 0, 0], port).into();
@@ -293,20 +228,72 @@ async fn main() {
     warp::serve(ws_route).run(addr).await;
 }
 
-async fn handle_connection(ws: WebSocket, table_id: TableId, shared_tables: SharedTablesMap, next_client_id: SharedClientId, tx: broadcast::Sender<ClientMessage>) {
-    let mut shared_table : Option<SharedTable> = match shared_tables.lock().await.get(&table_id) {
+// === handle_connection ==========================================================================
+//
+// Pseudocode:
+//  1. Check for table in map
+//      a. If present, proceed to AAA
+//  2. Check for table in database
+//      a. If not present, terminate
+//      b. Add database to table map
+//          i. Set client count to 0
+//          ii. Spawn lock manager thread
+//          iii. Create broadcast channel
+//  3. Increment client count on table
+//  4. Subscribe to broadcast channel
+//  5. Take messages until disconnect
+//  6. Decrement client count
+//
+// ================================================================================================
+async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_id: TableId, db_cli: Arc<Mutex<postgres::Client>>, next_client_id: SharedClientId) {
+    // Pseudocode:
+    //  1. Check for table in map
+    let mut shared_table : Option<Arc<SharedTable>> = match shared_tables.lock().await.get(&table_id) {
         None => None,
-        Some(shared_table) => Some(shared_table.clone())
+    //      a. If present, proceed to AAA
+        Some(table) => Some(Arc::clone(table))
     };
+
+    //  2. Check for table in database
+    if let None = shared_table {
+        let db_cli = db_cli.lock().await;
+
+        match fetch_table(&db_cli, table_id).await {
+            Ok(table_cells) => {
+                let (tx, _rx) = broadcast::channel::<ClientMessage>(100);
+                //      b. Add table to table map
+                //          i. Set client count to 0
+                //          ii. TODO: Spawn lock manager thread
+                //          iii. Create broadcast channel
+                let shared_table_new = Arc::new(SharedTable{
+                    cells: table_cells,
+                    client_count: AtomicU32::new(0u32),
+                    sender: tx.clone()
+                });
+                shared_table = Some(Arc::clone(&shared_table_new));
+                let mut shared_tables = shared_tables.lock().await;
+                shared_tables.insert(table_id, Arc::clone(&shared_table_new));
+            },
+            Err(e) => {
+    //      a. If not present, terminate
+                eprintln!("ERROR: {}", e);
+            }
+        };// end match fetch_table(db_cli, table_id)
+    }
 
     match &mut shared_table {
         None => {
-            println!("Table with id {} not found", table_id);
+            eprintln!("Could not access table with id = {}", table_id);
         },
         Some(ref mut table) => {
             let (mut user_ws_tx, mut user_ws_rx) = ws.split();
-            let mut rx = tx.subscribe();
             let current_client_id;
+
+            //  3. Increment client count on table
+            table.client_count.fetch_add(1, atomic::Ordering::Relaxed);
+
+            //  4. Subscribe to broadcast channel
+            let mut rx = table.sender.subscribe();
 
             {
                 let mut id_lock = next_client_id.lock().await;
@@ -316,7 +303,7 @@ async fn handle_connection(ws: WebSocket, table_id: TableId, shared_tables: Shar
 
             let init_table = {
                 let mut snapshot = vec![];
-                for row in &**table {
+                for row in table.cells.iter() {
                     let mut snap_row = vec![];
                     for cell in row {
                         let c = cell.lock().await;
@@ -348,16 +335,16 @@ async fn handle_connection(ws: WebSocket, table_id: TableId, shared_tables: Shar
                 }
             });
 
+            //  5. Take messages until disconnect
             let recv_task = tokio::spawn({
                 let table = Arc::clone(&table);
-                let tx = tx.clone();
                 async move {
                     while let Some(Ok(msg)) = user_ws_rx.next().await {
                         if let Ok(text_str) = msg.to_str() {
                             if let Ok(mut client_msg) = serde_json::from_str::<ClientMessage>(text_str) {
                                 match client_msg {
                                     ClientMessage::Insert { ref mut client_id, cell: (r, c), index, ref text, .. } => {
-                                        let mut cell = table[r][c].lock().await;
+                                        let mut cell = table.cells[r][c].lock().await;
                                         *client_id = current_client_id;
                                         if cell.lock.map_or(true, |l| l.owner_id == current_client_id) {
                                             if index >= cell.text.len() {
@@ -366,31 +353,31 @@ async fn handle_connection(ws: WebSocket, table_id: TableId, shared_tables: Shar
                                                 cell.text.insert_str(index, text);
                                             }
                                             cell.lock = Some(CellLockData { owner_id: current_client_id, duration_secs: 3 });
-                                            tx.send(client_msg).ok();
-                                            tx.send(ClientMessage::AcquireLock { client_id: current_client_id, cell: (r, c) }).ok();
+                                            table.sender.send(client_msg).ok();
+                                            table.sender.send(ClientMessage::AcquireLock { client_id: current_client_id, cell: (r, c) }).ok();
                                         }
                                     }
                                     ClientMessage::Delete { ref mut client_id, cell: (r, c), start, end, .. } => {
-                                        let mut cell = table[r][c].lock().await;
+                                        let mut cell = table.cells[r][c].lock().await;
                                         *client_id = current_client_id;
                                         if cell.lock.map_or(true, |l| l.owner_id == current_client_id) {
                                             if start <= end && end <= cell.text.len() {
                                                 cell.text.replace_range(start..end, "");
                                                 cell.lock = Some(CellLockData { owner_id: current_client_id, duration_secs: 3 });
-                                                tx.send(client_msg).ok();
-                                                tx.send(ClientMessage::AcquireLock { client_id: current_client_id, cell: (r, c) }).ok();
+                                                table.sender.send(client_msg).ok();
+                                                table.sender.send(ClientMessage::AcquireLock { client_id: current_client_id, cell: (r, c) }).ok();
                                             }
                                         }
                                     }
                                     ClientMessage::Replace { ref mut client_id, cell: (r, c), start, end, ref text, .. } => {
-                                        let mut cell = table[r][c].lock().await;
+                                        let mut cell = table.cells[r][c].lock().await;
                                         *client_id = current_client_id;
                                         if cell.lock.map_or(true, |l| l.owner_id == current_client_id) {
                                             if start <= end && end <= cell.text.len() {
                                                 cell.text.replace_range(start..end, text);
                                                 cell.lock = Some(CellLockData { owner_id: current_client_id, duration_secs: 3 });
-                                                tx.send(client_msg).ok();
-                                                tx.send(ClientMessage::AcquireLock { client_id: current_client_id, cell: (r, c) }).ok();
+                                                table.sender.send(client_msg).ok();
+                                                table.sender.send(ClientMessage::AcquireLock { client_id: current_client_id, cell: (r, c) }).ok();
                                             }
                                         }
                                     }
@@ -407,7 +394,15 @@ async fn handle_connection(ws: WebSocket, table_id: TableId, shared_tables: Shar
                 _ = recv_task => {},
             }
 
+            //  6. Decrement client count
+            table.client_count.fetch_sub(1, atomic::Ordering::Relaxed);
+
             println!("Client {} disconnected", current_client_id);
         }
     };// end match &shared_tables.get(&table_id)
-}
+    //  3. Increment client count on table
+    //  4. Subscribe to broadcast channel
+    //  5. Take messages until disconnect
+    //  6. Decrement client count
+}// end handle_connection
+
