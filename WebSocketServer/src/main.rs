@@ -245,7 +245,7 @@ async fn main() {
 //  6. Decrement client count
 //
 // ================================================================================================
-async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_id: TableId, db_cli: Arc<Mutex<postgres::Client>>, next_client_id: SharedClientId) {
+async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_id: TableId, db_cli_ref: Arc<Mutex<postgres::Client>>, next_client_id: SharedClientId) {
     // Pseudocode:
     //  1. Check for table in map
     let mut shared_table : Option<Arc<SharedTable>> = match shared_tables.lock().await.get(&table_id) {
@@ -256,7 +256,7 @@ async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_
 
     //  2. Check for table in database
     if let None = shared_table {
-        let db_cli = db_cli.lock().await;
+        let db_cli = db_cli_ref.lock().await;
 
         match fetch_table(&db_cli, table_id).await {
             Ok(table_cells) => {
@@ -273,6 +273,7 @@ async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_
 
                 // lock manager thread
                 {
+                    let db_cli_clone = Arc::clone(&db_cli_ref);
                     let shared_table_clone = Arc::clone(&shared_table_new);
                     let table_height = shared_table_clone.cells.len();
                     let table_width = shared_table_clone.cells.first().unwrap().len();
@@ -294,6 +295,20 @@ async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_
                                         }
                                         if to_reset {
                                             eprintln!("Resetting lock ({}, {})", row, col);
+                                            // write back to database
+                                            let db_cli = db_cli_clone.lock().await;
+
+                                           match db_cli.execute(
+                                                "UPDATE table_cells SET text = $1 WHERE table_id = $2 AND row_num = $3 AND column_num = $4",
+                                                &[&cell.text, &table_id, &(row as i32), &(col as i32)]
+                                            ).await {
+                                               Ok(n_rows) => {
+                                                   println!("{} rows updated by update", n_rows);
+                                               },
+                                               Err(e) => {
+                                                   println!("Could not update table cell: {}", e);
+                                               }
+                                           };
                                             cell.lock = None;
                                             let _ = tx_clone.send(ClientMessage::ReleaseLock { cell: (row, col) });
                                         }
