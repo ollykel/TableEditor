@@ -1,3 +1,11 @@
+-- Users
+CREATE TABLE users (
+  id BIGSERIAL PRIMARY KEY,
+  email VARCHAR(256) NOT NULL,
+  username VARCHAR(256) NOT NULL,
+  password_hashed CHAR(60) NOT NULL
+);
+
 -- Stores table metadata --
 CREATE TABLE tables (
   id BIGSERIAL PRIMARY KEY,
@@ -14,3 +22,4 @@ CREATE TABLE table_cells (
   text TEXT NOT NULL,
   PRIMARY KEY (table_id, row_num, column_num)
 );
+
