@@ -3,7 +3,9 @@ CREATE TABLE users (
   id BIGSERIAL PRIMARY KEY,
   email VARCHAR(256) NOT NULL,
   username VARCHAR(256) NOT NULL,
-  password_hashed CHAR(60) NOT NULL
+  password_hashed CHAR(60) NOT NULL,
+  UNIQUE(email),
+  UNIQUE(username)
 );
 
 -- Stores table metadata --
