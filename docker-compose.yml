@@ -4,7 +4,6 @@ services:
   reverse_proxy:
     # Maps urls to ports to various services.
     # Main entry point for external clients.
-    container_name: reverse_proxy
     build: ReverseProxy
     ports:
       - ${TABLE_EDITOR_HTTP_PORT-8080}:8080
@@ -19,7 +18,6 @@ services:
 
   rest_api:
     # Provides a RESTful API for interfacing with the database.
-    container_name: rest_api
     build: RestAPI
     depends_on:
       - database
@@ -31,7 +29,6 @@ services:
   web_socket_server:
     # Handles web sockets for providing real-time interaction with clients.
     # Built in Rust.
-    container_name: web_socket_server
     build: WebSocketServer
     ports:
       - ${TABLE_EDITOR_WS_PORT-4000}:4000
@@ -47,7 +44,6 @@ services:
   frontend:
     # Frontend code to serve to client.
     # Built using Vite, served with nginx
-    container_name: frontend
     build: Frontend
     depends_on:
       - web_socket_server
@@ -57,7 +53,6 @@ services:
 
   database:
     # PostgreSQL database
-    container_name: database
     build: Database
     volumes:
       - db-data:/var/lib/postgresql/data
