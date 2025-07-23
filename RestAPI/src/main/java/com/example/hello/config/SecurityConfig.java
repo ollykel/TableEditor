@@ -6,6 +6,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.http.HttpMethod;
 
 @Configuration
 public class SecurityConfig {
@@ -14,7 +15,9 @@ public class SecurityConfig {
       http
           .csrf().disable() // disable CSRF for development/testing
           .authorizeHttpRequests(auth -> auth
-              .anyRequest().permitAll() // allow all endpoints without auth
+              .requestMatchers("/api/v1/auth").anonymous()
+              .requestMatchers(HttpMethod.POST, "/api/v1/users").anonymous()
+              .anyRequest().authenticated() // allow all endpoints without auth
           );
       return http.build();
   }
