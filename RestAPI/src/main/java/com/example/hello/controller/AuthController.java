@@ -25,7 +25,7 @@ public class AuthController {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    @PostMapping("/login")
+    @PostMapping
     public ResponseEntity<?> login(@RequestBody AuthRequest request) {
         // Normally you'd verify against a DB here
         Optional<UserEntity>  user = this.userRepository.findByUsername(request.getUsername());
