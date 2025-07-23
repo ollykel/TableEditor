@@ -26,7 +26,9 @@ public class AuthController {
     private PasswordEncoder passwordEncoder;
 
     @PostMapping
-    public ResponseEntity<?> login(@RequestBody AuthRequest request) {
+    public ResponseEntity<?> login(@RequestBody AuthRequest request)
+      throws InterruptedException
+    {
         // Normally you'd verify against a DB here
         Optional<UserEntity>  user = this.userRepository.findByUsername(request.getUsername());
 
@@ -38,6 +40,9 @@ public class AuthController {
 
           return ResponseEntity.ok(new AuthResponse(token));
         } else {
+          // Sleep to deter brute force attacks
+          Thread.sleep(2000);
+
           return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
     }
