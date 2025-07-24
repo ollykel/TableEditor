@@ -32,6 +32,10 @@ public class AuthController {
         // Normally you'd verify against a DB here
         Optional<UserEntity>  user = this.userRepository.findByUsername(request.getUsername());
 
+        if (! user.isPresent()) {
+          user = this.userRepository.findByEmail(request.getEmail());
+        }
+
         if (
             (user.isPresent())
             && this.passwordEncoder.matches(request.getPassword(), user.get().getPasswordHashed())
@@ -48,11 +52,16 @@ public class AuthController {
     }
 
     static class AuthRequest {
-        private String username;
+        private String username = "";
+        private String email = "";
         private String password;
 
         public String getUsername() {
           return this.username;
+        }
+
+        public String getEmail() {
+          return this.email;
         }
 
         public String getPassword() {
