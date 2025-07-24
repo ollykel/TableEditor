@@ -10,7 +10,7 @@ import java.util.Date;
 @Component
 public class JwtUtil {
 
-    private final Key key = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+    private final String secret = System.getenv("JWT_SECRET");
     private final long expirationMillis = 1000 * 60 * 60; // 1 hour
 
     public String generateToken(String username) {
@@ -18,13 +18,13 @@ public class JwtUtil {
             .setSubject(username)
             .setIssuedAt(new Date())
             .setExpiration(new Date(System.currentTimeMillis() + expirationMillis))
-            .signWith(key)
+            .signWith(SignatureAlgorithm.HS256, secret)
             .compact();
     }
 
     public String extractUsername(String token) {
         return Jwts.parserBuilder()
-            .setSigningKey(key)
+            .setSigningKey(secret)
             .build()
             .parseClaimsJws(token)
             .getBody()
@@ -33,7 +33,7 @@ public class JwtUtil {
 
     public boolean isValid(String token) {
         try {
-            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
+            Jwts.parserBuilder().setSigningKey(secret).build().parseClaimsJws(token);
             return true;
         } catch (JwtException e) {
             return false;
