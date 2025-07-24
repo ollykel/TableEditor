@@ -11,6 +11,8 @@ import TablePage from '@/pages/TablePage';
 import LandingPage from '@/pages/LandingPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 
+const APP_ROUTE_PREFIX = '/app';
+
 function App() {
   const queryClient = new QueryClient();
 
@@ -20,16 +22,17 @@ function App() {
         <Routes>
           {/** public **/}
           <Route path="/" element={<LandingPage />} />
+          <Route path={APP_ROUTE_PREFIX} element={<LandingPage />} />
 
           {/** protected routes **/}
           <Route
-            path="/home"
+            path={`${APP_ROUTE_PREFIX}/home`}
             element={<PrivateRoute fallbackUrl="/">
               <HomePage />
             </PrivateRoute>}
           />
           <Route
-            path="/tables/:tableId"
+            path={`${APP_ROUTE_PREFIX}/tables/:tableId`}
             element={<PrivateRoute fallbackUrl="/">
               <TablePage />
             </PrivateRoute>}
