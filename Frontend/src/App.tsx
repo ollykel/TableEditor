@@ -9,6 +9,7 @@ import { AuthProvider } from '@/context/AuthContext';
 import PrivateRoute from '@/components/PrivateRoute';
 
 import HomePage from '@/pages/HomePage';
+import CreateAccountPage from '@/pages/CreateAccountPage';
 import TablePage from '@/pages/TablePage';
 import LandingPage from '@/pages/LandingPage';
 import NotFoundPage from '@/pages/NotFoundPage';
@@ -26,11 +27,26 @@ function App() {
             {/** public **/}
             <Route
               path="/"
-              element={<LandingPage onLoginUrl={`${APP_ROUTE_PREFIX}/home`} />}
+              element={
+                <LandingPage
+                  onLoginUrl={`${APP_ROUTE_PREFIX}/home`}
+                  createAccountUrl={`${APP_ROUTE_PREFIX}/create_account`}
+                />
+              }
             />
             <Route
               path={APP_ROUTE_PREFIX}
-              element={<LandingPage onLoginUrl={`${APP_ROUTE_PREFIX}/home`} />}
+              element={
+                <LandingPage
+                  onLoginUrl={`${APP_ROUTE_PREFIX}/home`}
+                  createAccountUrl={`${APP_ROUTE_PREFIX}/create_account`}
+                />
+              }
+            />
+
+            <Route
+              path={`${APP_ROUTE_PREFIX}/create_account`}
+              element={ <CreateAccountPage /> }
             />
 
             {/** protected routes **/}

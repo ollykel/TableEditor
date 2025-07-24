@@ -1,19 +1,30 @@
 import Title from '@/components/Title';
 import CreateAccountForm from '@/components/CreateAccountForm';
 
-import type { CreateAccountFormProps } from '@/components/CreateAccountForm';
+import type { CreateAccountFormData } from '@/components/CreateAccountForm';
 
-export interface CreateAccountPageProps extends CreateAccountFormProps {}
-
-const CreateAccountPage = (props: CreateAccountPageProps): React.JSX.Element => {
-  const { onSubmit } = props;
+const CreateAccountPage = (): React.JSX.Element => {
+  const handleSubmit = (accountData: CreateAccountFormData): void => {
+    fetch('/api/v1/users', {
+      method: 'POST',
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(accountData),
+    })
+      .then((res) => {
+        if (! res.ok) {
+          alert('Failed to create account');
+        } else {
+          alert('Account created successfully!');
+        }
+      });
+  };
 
   return (
     <div>
       <Title />
       <h2>Create Account</h2>
       <CreateAccountForm
-        onSubmit={onSubmit}
+        onSubmit={handleSubmit}
       />
     </div>
   );

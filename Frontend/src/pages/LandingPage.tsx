@@ -1,3 +1,4 @@
+import { Link } from "react-router";
 import { useNavigate } from 'react-router-dom';
 
 import Title from '@/components/Title';
@@ -8,12 +9,13 @@ import type { LoginFormData } from '@/components/LoginForm';
 
 export interface LandingPageProps {
   onLoginUrl: string;
+  createAccountUrl: string;
 }
 
 const LandingPage = (props: LandingPageProps): React.JSX.Element => {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const { onLoginUrl } = props;
+  const { onLoginUrl, createAccountUrl } = props;
   const handleSubmit = (loginData: LoginFormData) => {
     const { email, password } = loginData;
     login(email, password)
@@ -30,6 +32,9 @@ const LandingPage = (props: LandingPageProps): React.JSX.Element => {
     <div>
       <Title />
       <LoginForm onSubmit={handleSubmit} />
+      <Link to={createAccountUrl}>
+        Create Account
+      </Link>
     </div>
   );
 };
