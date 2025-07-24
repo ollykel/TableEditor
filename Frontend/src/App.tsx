@@ -4,6 +4,8 @@ import {
 } from '@tanstack/react-query';
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
+import PrivateRoute from '@/components/PrivateRoute';
+
 import HomePage from '@/pages/HomePage';
 import TablePage from '@/pages/TablePage';
 import LandingPage from '@/pages/LandingPage';
@@ -18,8 +20,21 @@ function App() {
         <Routes>
           {/** public **/}
           <Route path="/" element={<LandingPage />} />
-          <Route path="/home" element={<HomePage />} />
-          <Route path="/tables/:tableId" element={<TablePage />} />
+
+          {/** protected routes **/}
+          <Route
+            path="/home"
+            element={<PrivateRoute fallbackUrl="/">
+              <HomePage />
+            </PrivateRoute>}
+          />
+          <Route
+            path="/tables/:tableId"
+            element={<PrivateRoute fallbackUrl="/">
+              <TablePage />
+            </PrivateRoute>}
+          />
+
           {/** 404 page **/}
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
