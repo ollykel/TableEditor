@@ -41,7 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       
       return true;
-    } catch {
+    } catch (err) {
       return false;
     }
   };

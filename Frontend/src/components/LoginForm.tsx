@@ -1,12 +1,12 @@
 // import React, { useState } from 'react';
 import { useForm } from '@tanstack/react-form'
 
-interface LoginFormData {
+export interface LoginFormData {
   email: string;
   password: string;
 }
 
-interface LoginFormProps {
+export interface LoginFormProps {
   onSubmit: (data: LoginFormData) => void;
 }
 
@@ -42,7 +42,7 @@ const LoginForm = (props: LoginFormProps): React.JSX.Element => {
                 return !value ? 
                   'Email required'
                   : value.length < 3
-                    ? 'Username must be at least three characters long'
+                    ? 'Email must be at least three characters long'
                     : undefined;
               },
               onChangeAsyncDebounceMs: 500
@@ -106,7 +106,7 @@ const LoginForm = (props: LoginFormProps): React.JSX.Element => {
         <form.Subscribe
           selector={(state) => [state.canSubmit, state.isSubmitting]}
           children={([canSubmit, isSubmitting]) => (
-            <button type="submit" disabled={!canSubmit} onClick={() => canSubmit && form.handleSubmit()}>
+            <button type="submit" disabled={!canSubmit}>
               {isSubmitting ? '...' : 'Log in'}
             </button>
           )}

@@ -4,6 +4,8 @@ import {
 } from '@tanstack/react-query';
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
+import { AuthProvider } from '@/context/AuthContext';
+
 import PrivateRoute from '@/components/PrivateRoute';
 
 import HomePage from '@/pages/HomePage';
@@ -18,30 +20,38 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Router>
-        <Routes>
-          {/** public **/}
-          <Route path="/" element={<LandingPage />} />
-          <Route path={APP_ROUTE_PREFIX} element={<LandingPage />} />
+      <AuthProvider>
+        <Router>
+          <Routes>
+            {/** public **/}
+            <Route
+              path="/"
+              element={<LandingPage onLoginUrl={`${APP_ROUTE_PREFIX}/home`} />}
+            />
+            <Route
+              path={APP_ROUTE_PREFIX}
+              element={<LandingPage onLoginUrl={`${APP_ROUTE_PREFIX}/home`} />}
+            />
 
-          {/** protected routes **/}
-          <Route
-            path={`${APP_ROUTE_PREFIX}/home`}
-            element={<PrivateRoute fallbackUrl="/">
-              <HomePage />
-            </PrivateRoute>}
-          />
-          <Route
-            path={`${APP_ROUTE_PREFIX}/tables/:tableId`}
-            element={<PrivateRoute fallbackUrl="/">
-              <TablePage />
-            </PrivateRoute>}
-          />
+            {/** protected routes **/}
+            <Route
+              path={`${APP_ROUTE_PREFIX}/home`}
+              element={<PrivateRoute fallbackUrl="/">
+                <HomePage />
+              </PrivateRoute>}
+            />
+            <Route
+              path={`${APP_ROUTE_PREFIX}/tables/:tableId`}
+              element={<PrivateRoute fallbackUrl="/">
+                <TablePage />
+              </PrivateRoute>}
+            />
 
-          {/** 404 page **/}
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
-      </Router>
+            {/** 404 page **/}
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </Router>
+      </AuthProvider>
     </QueryClientProvider>
   )
 }
