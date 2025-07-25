@@ -3,6 +3,7 @@ import {
   useQuery
 } from '@tanstack/react-query';
 
+import { useAuth } from '@/context/AuthContext';
 import { WebSocketProvider } from '@/context/WebSocketContext';
 import TableEditor from '@/components/TableEditor';
 
@@ -10,10 +11,16 @@ import type TableProps from '@/types/TableProps';
 
 const TablePage = () => {
   const { tableId } = useParams();
+  const { getAuthToken } = useAuth();
   const { isPending, error, data: tableProps, isFetching } = useQuery({
     queryKey: ['tables', tableId],
     queryFn: async () => {
-      const resp = await fetch(`/api/v1/tables/${tableId}`);
+      const resp = await fetch(`/api/v1/tables/${tableId}`, {
+        credentials: "include",
+        headers: {
+          'Authorization': `Bearer ${getAuthToken()}`
+        }
+      });
 
       return await resp.json() as TableProps;
     }

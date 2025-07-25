@@ -1,5 +1,6 @@
 import type TableProps from '@/types/TableProps';
 
+import { useAuth } from '@/context/AuthContext';
 import { Link } from 'react-router';
 import {
   useQuery,
@@ -62,10 +63,15 @@ const Table = ({ id, name, width, height }: TableProps): React.JSX.Element => {
 
 const TableList = () => {
   const queryClient = useQueryClient();
+  const { getAuthToken } = useAuth();
   const { isPending, error, data: tables, isFetching } = useQuery({
     queryKey: ['tables'],
     queryFn: async () => {
-      const response = await fetch('/api/v1/tables');
+      const response = await fetch('/api/v1/tables', {
+        'headers': {
+          'Authorization': `Bearer ${getAuthToken()}`
+        }
+      });
 
       return await response.json();
     }
@@ -75,7 +81,8 @@ const TableList = () => {
     fetch('/api/v1/tables', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${getAuthToken()}`
       },
       body: JSON.stringify(tableData)
     }).then((_) => {
