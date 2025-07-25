@@ -66,7 +66,7 @@ const TableList = (): React.JSX.Element => {
   const { isPending, error, data: tables, isFetching } = useQuery({
     queryKey: ['tables'],
     queryFn: async () => {
-      const response = await fetch('/api/v1/tables', {
+      const response = await fetch('/api/v1/tables?owners=me', {
         'headers': {
           'Authorization': `Bearer ${getAuthToken()}`
         }
@@ -122,7 +122,7 @@ const HomePage = () => {
 
   return (
     <div>
-      <h1>Tables</h1>
+      <h1>My Tables</h1>
       <TableList />
       <Modal title="New Table" buttonLabel="+ Add Table" buttonClassName="hover:cursor-pointer">
         <p>Create a new table.</p>
