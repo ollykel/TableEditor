@@ -1,6 +1,9 @@
 package com.example.hello.entity;
 
+import java.util.List;
+
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 @Entity
 @Table(name = "users")
@@ -18,7 +21,15 @@ public class UserEntity {
   @Column(name="password_hashed", nullable = false, length = 60)
   private String passwordHashed;
 
+  @JsonManagedReference
+  @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
+  private List<TableEntity> ownTables;
+
   public UserEntity() {}
+
+  public Long getId() {
+    return this.id;
+  }
 
   public String getUsername() {
     return this.username;
@@ -44,4 +55,7 @@ public class UserEntity {
     this.passwordHashed = passwordHashed;
   }
 
+  public List<TableEntity> getOwnTables() {
+    return this.ownTables;
+  }
 }// end public class UserEntity

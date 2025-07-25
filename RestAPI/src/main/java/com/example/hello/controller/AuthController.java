@@ -30,17 +30,18 @@ public class AuthController {
       throws InterruptedException
     {
         // Normally you'd verify against a DB here
-        Optional<UserEntity>  user = this.userRepository.findByUsername(request.getUsername());
+        Optional<UserEntity>  userOpt = this.userRepository.findByUsername(request.getUsername());
 
-        if (! user.isPresent()) {
-          user = this.userRepository.findByEmail(request.getEmail());
+        if (! userOpt.isPresent()) {
+          userOpt = this.userRepository.findByEmail(request.getEmail());
         }
 
         if (
-            (user.isPresent())
-            && this.passwordEncoder.matches(request.getPassword(), user.get().getPasswordHashed())
+            (userOpt.isPresent())
+            && this.passwordEncoder.matches(request.getPassword(), userOpt.get().getPasswordHashed())
         ) {
-          String token = jwtUtil.generateToken(request.getUsername());
+          UserEntity  user = userOpt.get();
+          String      token = jwtUtil.generateToken(user.getId(), user.getUsername());
 
           return ResponseEntity.ok(new AuthResponse(token));
         } else {

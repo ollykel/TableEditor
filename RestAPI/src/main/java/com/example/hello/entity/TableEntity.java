@@ -1,6 +1,7 @@
 package com.example.hello.entity;
 
 import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import java.util.List;
 
@@ -15,6 +16,11 @@ public class TableEntity {
     @Column(nullable = false, length = 256)
     private String name;
 
+    @JsonBackReference
+    @ManyToOne
+    @JoinColumn(name = "owner_id", nullable = false)
+    private UserEntity owner;
+
     @Column(nullable = false)
     private int width;
 
@@ -27,7 +33,8 @@ public class TableEntity {
 
     public TableEntity() {}
 
-    public TableEntity(String name, int width, int height) {
+    public TableEntity(UserEntity owner, String name, int width, int height) {
+        this.owner = owner;
         this.name = name;
         this.width = width;
         this.height = height;
@@ -35,12 +42,13 @@ public class TableEntity {
 
     // Getters and setters
     public Long getId() { return id; }
+    public UserEntity getOwner() { return owner; }
     public String getName() { return name; }
     public int getWidth() { return width; }
     public int getHeight() { return height; }
     public List<TableCell> getCells() { return cells; }
 
-    public void setId(Long id) { this.id = id; }
+    public void setOwner(UserEntity owner) { this.owner = owner; }
     public void setName(String name) { this.name = name; }
     public void setWidth(int width) { this.width = width; }
     public void setHeight(int height) { this.height = height; }

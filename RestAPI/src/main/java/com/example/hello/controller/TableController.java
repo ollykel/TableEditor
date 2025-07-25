@@ -5,24 +5,30 @@ import java.util.Optional;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletRequest;
 
 import com.example.hello.entity.TableEntity;
+import com.example.hello.entity.UserEntity;
 import com.example.hello.entity.TableCell;
 import com.example.hello.entity.TableCell;
 import com.example.hello.repository.TableRepository;
 import com.example.hello.repository.TableCellRepository;
+import com.example.hello.repository.UserRepository;
 import com.example.hello.dto.TableCellRequest;
+import com.example.hello.dto.CreateTableRequest;
 
 @RestController
 @RequestMapping("/api/v1/tables")
 public class TableController {
 
-    private final TableRepository     tableRepository;
-    private final TableCellRepository tableCellRepository;
+    private final TableRepository       tableRepository;
+    private final TableCellRepository   tableCellRepository;
+    private final UserRepository        userRepository;
 
-    public TableController(TableRepository tableRepository, TableCellRepository cellRepository) {
+    public TableController(TableRepository tableRepository, TableCellRepository cellRepository, UserRepository userRepository) {
         this.tableRepository = tableRepository;
         this.tableCellRepository = cellRepository;
+        this.userRepository = userRepository;
     }
 
     @GetMapping
@@ -31,19 +37,33 @@ public class TableController {
     }
 
     @PostMapping
-    public TableEntity createTable(@RequestBody TableEntity table) {
+    public Optional<TableEntity> createTable(@RequestBody CreateTableRequest data, HttpServletRequest req) {
       // Initialize blank cells
-      TableEntity out = this.tableRepository.save(table);
+      Object  uname = req.getAttribute("username");
 
-      for (int i_row = 0; i_row < table.getHeight(); ++i_row) {
-        for (int i_col = 0; i_col < table.getWidth(); ++i_col) {
-          TableCell cell = new TableCell(out, i_row, i_col, "");
+      if (! (uname instanceof String)) {
+        return Optional.empty();
+      }
 
-          this.tableCellRepository.save(cell);
-        }// end for (int i_col = 0; i_col < table.getWidth(); ++i_col)
-      }// end for (int i_row = 0; i_row < table.getHeight(); ++i_row)
+      String                username = (String) uname;
+      Optional<UserEntity>  user = this.userRepository.findByUsername(username);
 
-      return out;
+      if (! user.isPresent()) {
+        return Optional.empty();
+      } else {
+        TableEntity table = new TableEntity(user.get(), data.name, data.width, data.height);
+        TableEntity out = this.tableRepository.save(table);
+
+        for (int i_row = 0; i_row < table.getHeight(); ++i_row) {
+          for (int i_col = 0; i_col < table.getWidth(); ++i_col) {
+            TableCell cell = new TableCell(out, i_row, i_col, "");
+
+            this.tableCellRepository.save(cell);
+          }// end for (int i_col = 0; i_col < table.getWidth(); ++i_col)
+        }// end for (int i_row = 0; i_row < table.getHeight(); ++i_row)
+
+        return Optional.of(out);
+      }
     }
 
     @GetMapping("{id}")
