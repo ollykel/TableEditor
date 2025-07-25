@@ -61,20 +61,13 @@ const Table = ({ id, name, width, height }: TableProps): React.JSX.Element => {
   );
 };
 
-const TableList = (): React.JSX.Element => {
-  const { getAuthToken } = useAuth();
-  const { isPending, error, data: tables, isFetching } = useQuery({
-    queryKey: ['tables'],
-    queryFn: async () => {
-      const response = await fetch('/api/v1/tables?owners=me', {
-        'headers': {
-          'Authorization': `Bearer ${getAuthToken()}`
-        }
-      });
+interface TableListProps {
+  queryStatus: any;
+}
 
-      return await response.json();
-    }
-  });
+const TableList = (props: TableListProps): React.JSX.Element => {
+  const { queryStatus } = props;
+  const { isPending, error, data: tables, isFetching } = queryStatus;
 
   if (error) {
     return (<p>Error: {`${error}`}</p>);
@@ -104,6 +97,18 @@ const TableList = (): React.JSX.Element => {
 const HomePage = () => {
   const queryClient = useQueryClient();
   const { getAuthToken } = useAuth();
+  const ownQueryStatus = useQuery({
+    queryKey: ['own_tables'],
+    queryFn: async () => {
+      const response = await fetch('/api/v1/tables?owners=me', {
+        'headers': {
+          'Authorization': `Bearer ${getAuthToken()}`
+        }
+      });
+
+      return await response.json();
+    }
+  });
 
   const addTable = (tableData: AddTableFormData): void => {
     fetch('/api/v1/tables', {
@@ -115,7 +120,7 @@ const HomePage = () => {
       body: JSON.stringify(tableData)
     }).then((_) => {
       queryClient.invalidateQueries({
-        queryKey: ['tables']
+        queryKey: ['own_tables']
       });
     });
   };
@@ -123,7 +128,7 @@ const HomePage = () => {
   return (
     <div>
       <h1>My Tables</h1>
-      <TableList />
+      <TableList queryStatus={ownQueryStatus} />
       <Modal title="New Table" buttonLabel="+ Add Table" buttonClassName="hover:cursor-pointer">
         <p>Create a new table.</p>
         <AddTableForm addTable={addTable} />
