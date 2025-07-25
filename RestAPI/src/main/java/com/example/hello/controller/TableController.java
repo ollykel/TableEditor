@@ -7,6 +7,7 @@ import java.util.Set;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Collection;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -44,23 +45,23 @@ public class TableController {
 
     private static class OwnerFilter {
       private boolean     isInverse;
-      private List<Long>  ownerIds;
+      private Set<Long>   ownerIds;
 
       public OwnerFilter()
       {
         this.isInverse = false;
-        this.ownerIds = new ArrayList();
+        this.ownerIds = new HashSet();
       }
 
       public boolean    getIsInverse() { return this.isInverse; }
-      public List<Long> getOwnerIds() { return this.ownerIds; }
+      public Set<Long>  getOwnerIds() { return this.ownerIds; }
 
       public void setIsInverse(boolean isInverse) {
         this.isInverse = isInverse;
       }
 
-      public void setOwnerIds(List<Long> ownerIds) {
-        this.ownerIds = ownerIds;
+      public void setOwnerIds(Collection<Long> ownerIds) {
+        this.ownerIds = new HashSet(ownerIds);
       }
 
       // === fromString ========================================================
@@ -106,7 +107,7 @@ public class TableController {
           throw new InvalidFilterException("Owner id filter must contain at least one user id");
         }
 
-        List<Long>  ownerIds = new ArrayList();
+        Set<Long>   ownerIds = new HashSet();
 
         for (String ids : ownerIdStrings) {
           if(ids == "me") {
