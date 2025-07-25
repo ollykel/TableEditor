@@ -1,9 +1,16 @@
 package com.example.hello.controller;
 
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Optional;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Collection;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -25,6 +32,114 @@ public class TableController {
     private final TableCellRepository   tableCellRepository;
     private final UserRepository        userRepository;
 
+    private static interface TableFilter {
+      public boolean isValid(TableEntity table);
+    }
+
+    public static class InvalidFilterException
+        extends Exception
+    {
+      public InvalidFilterException(String msg) {
+        super(msg);
+      }
+    }
+
+    private static class OwnerFilter
+      implements TableFilter
+    {
+      private boolean     isInverse;
+      private Set<Long>   ownerIds;
+
+      public OwnerFilter()
+      {
+        this.isInverse = false;
+        this.ownerIds = new HashSet();
+      }
+
+      public boolean    getIsInverse() { return this.isInverse; }
+      public Set<Long>  getOwnerIds() { return this.ownerIds; }
+
+      public void setIsInverse(boolean isInverse) {
+        this.isInverse = isInverse;
+      }
+
+      public void setOwnerIds(Collection<Long> ownerIds) {
+        this.ownerIds = new HashSet(ownerIds);
+      }
+
+      public boolean isValid(TableEntity table) {
+        if (this.getIsInverse()) {
+          return ! this.ownerIds.contains(table.getOwner().getId());
+        } else {
+          return this.ownerIds.contains(table.getOwner().getId());
+        }
+      }
+
+      // === fromString ========================================================
+      //
+      // Generates an OwnerFilter from a string. If "me" is encountered, it is
+      // replaced with the provided user id corresponding to the currently
+      // authenticated user.
+      //
+      // @param s [IN]        -- The filter string
+      // @param selfId [IN]   -- The id of the user corresponding to "me"
+      // @return An owner filter specifying which owner ids to filter for (or
+      // avoid)
+      // @throws InvalidFilterException if the query string is not in the proper
+      // format
+      //
+      // Expected query string format: {!?}<comma-separated list of one or more
+      // user ids or me>
+      //
+      // CFG:
+      //  S = !T | T
+      //  T = VALID_ID | VALID_ID,T
+      //  VALID_ID = me|<INTEGER>
+      //
+      // =======================================================================
+      public static OwnerFilter fromString(String s, Long selfId)
+        throws InvalidFilterException
+      {
+        if (s.isEmpty()) {
+          throw new InvalidFilterException("Owner filter string cannot be empty");
+        } 
+        
+        OwnerFilter   out = new OwnerFilter();
+        String        idString = s;
+
+        if (s.charAt(0) == '!') {
+          out.setIsInverse(true);
+          idString = s.substring(1);
+        }
+
+        String[]  ownerIdStrings = idString.split(",");
+
+        if (ownerIdStrings.length < 1) {
+          throw new InvalidFilterException("Owner id filter must contain at least one user id");
+        }
+
+        Set<Long>   ownerIds = new HashSet();
+
+        for (String ids : ownerIdStrings) {
+          if(ids.equals("me")) {
+            ownerIds.add(selfId);
+          } else {
+            try {
+              ownerIds.add(Long.parseLong(ids));
+            } catch (NumberFormatException e) {
+              throw new InvalidFilterException(
+                String.format("Owner ids must be long integers or \"me\"")
+              );
+            }
+          }
+        }// end for (String ids : ownerIdStrings)
+
+        out.setOwnerIds(ownerIds);
+
+        return out;
+      }
+    }
+
     public TableController(TableRepository tableRepository, TableCellRepository cellRepository, UserRepository userRepository) {
         this.tableRepository = tableRepository;
         this.tableCellRepository = cellRepository;
@@ -32,8 +147,63 @@ public class TableController {
     }
 
     @GetMapping
-    public List<TableEntity> getAllTables() {
-        return tableRepository.findAll();
+    public ResponseEntity<?> getTables(HttpServletRequest req) {
+      // PCode:
+      // If no query:
+      //  -> return all
+      // Else:
+      //  get query params
+      //  create filter list from query params
+      //    -> if unrecognized param, return 400
+      //  -> return filtered entities
+      Map<String, String[]>   params = req.getParameterMap();
+      List<TableEntity>     allTables = this.tableRepository.findAll();
+
+      if (params.isEmpty()) {
+        return ResponseEntity.ok(allTables);
+      } else {
+        try {
+          Long              selfId = (Long) req.getAttribute("uid");
+          List<TableFilter> tableFilters = new ArrayList();
+
+          for (Map.Entry<String, String[]> entry : params.entrySet()) {
+            String  filterName = entry.getKey();
+            String  filterString = String.join(",", entry.getValue());
+
+            switch (filterName) {
+              case "owners":
+                tableFilters.add(OwnerFilter.fromString(filterString, selfId));
+                break;
+              default:
+                // invalid filter
+                throw new InvalidFilterException(
+                  String.format("Unrecognised filter type: %s", filterName)
+                );
+            }// end switch (filterName)
+          }// end for (Map.Entry<String, String> entry : params.entrySet())
+
+          List<TableEntity>   out = new ArrayList();
+
+          for (TableEntity table : allTables) {
+            boolean isValid = true;
+
+            for (TableFilter filter : tableFilters) {
+              if (! filter.isValid(table)) {
+                isValid = false;
+                break;
+              }
+            }// end for (TableFilter filter : tableFilters)
+
+            if (isValid) {
+              out.add(table);
+            }
+          }// end for (TableEntity table : allTables)
+
+          return ResponseEntity.ok(out);
+        } catch (InvalidFilterException e) {
+          return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+      }
     }
 
     @PostMapping
