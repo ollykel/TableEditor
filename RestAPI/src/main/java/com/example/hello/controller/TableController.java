@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.Collection;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -120,13 +121,15 @@ public class TableController {
         Set<Long>   ownerIds = new HashSet();
 
         for (String ids : ownerIdStrings) {
-          if(ids == "me") {
+          if(ids.equals("me")) {
             ownerIds.add(selfId);
           } else {
             try {
               ownerIds.add(Long.parseLong(ids));
             } catch (NumberFormatException e) {
-              throw new InvalidFilterException("Owner ids must be long integers");
+              throw new InvalidFilterException(
+                String.format("Owner ids must be long integers or \"me\"")
+              );
             }
           }
         }// end for (String ids : ownerIdStrings)
@@ -143,29 +146,65 @@ public class TableController {
         this.userRepository = userRepository;
     }
 
-    // private List<TableEntity> filterTablesByOwner(List<TableEntity> tables, String filter)
-    //   throws InvalidFilterException
-    // {
-    // }
+    @GetMapping
+    public ResponseEntity<?> getTables(HttpServletRequest req) {
+      // PCode:
+      // If no query:
+      //  -> return all
+      // Else:
+      //  get query params
+      //  create filter list from query params
+      //    -> if unrecognized param, return 400
+      //  -> return filtered entities
+      Map<String, String[]>   params = req.getParameterMap();
+      List<TableEntity>     allTables = this.tableRepository.findAll();
 
-    // @GetMapping
-    // public List<TableEntity> getTables(HttpServletRequest req) {
-    //   // PCode:
-    //   // If no query:
-    //   //  -> return all
-    //   // Else:
-    //   //  get query params
-    //   //  create filter list from query params
-    //   //    -> if unrecognized param, return 400
-    //   //  -> return filtered entities
-    //   String  querys = req.getQueryString();
+      if (params.isEmpty()) {
+        return ResponseEntity.ok(allTables);
+      } else {
+        try {
+          Long              selfId = (Long) req.getAttribute("uid");
+          List<TableFilter> tableFilters = new ArrayList();
 
-    //   if (querys == null) {
-    //     return this.tableRepository.findAll();
-    //   } else {
-    //     Map<String, String> queryParams = new HashMap();
-    //   }
-    // }
+          for (Map.Entry<String, String[]> entry : params.entrySet()) {
+            String  filterName = entry.getKey();
+            String  filterString = String.join(",", entry.getValue());
+
+            switch (filterName) {
+              case "owners":
+                tableFilters.add(OwnerFilter.fromString(filterString, selfId));
+                break;
+              default:
+                // invalid filter
+                throw new InvalidFilterException(
+                  String.format("Unrecognised filter type: %s", filterName)
+                );
+            }// end switch (filterName)
+          }// end for (Map.Entry<String, String> entry : params.entrySet())
+
+          List<TableEntity>   out = new ArrayList();
+
+          for (TableEntity table : allTables) {
+            boolean isValid = true;
+
+            for (TableFilter filter : tableFilters) {
+              if (! filter.isValid(table)) {
+                isValid = false;
+                break;
+              }
+            }// end for (TableFilter filter : tableFilters)
+
+            if (isValid) {
+              out.add(table);
+            }
+          }// end for (TableEntity table : allTables)
+
+          return ResponseEntity.ok(out);
+        } catch (InvalidFilterException e) {
+          return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+      }
+    }
 
     @PostMapping
     public Optional<TableEntity> createTable(@RequestBody CreateTableRequest data, HttpServletRequest req) {
