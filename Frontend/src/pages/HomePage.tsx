@@ -53,7 +53,7 @@ const AddTableForm = (props: AddTableFormProps) => {
 const Table = ({ id, name, width, height }: TableProps): React.JSX.Element => {
   return (
     <div id={`table-${id}`}>
-      <Link to={`/tables/${id}`}>
+      <Link to={`/app/tables/${id}`}>
         <h2>{name}</h2>
       </Link>
       <p>{height} X {width}</p>
@@ -61,8 +61,7 @@ const Table = ({ id, name, width, height }: TableProps): React.JSX.Element => {
   );
 };
 
-const TableList = () => {
-  const queryClient = useQueryClient();
+const TableList = (): React.JSX.Element => {
   const { getAuthToken } = useAuth();
   const { isPending, error, data: tables, isFetching } = useQuery({
     queryKey: ['tables'],
@@ -76,21 +75,6 @@ const TableList = () => {
       return await response.json();
     }
   });
-
-  const addTable = (tableData: AddTableFormData): void => {
-    fetch('/api/v1/tables', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${getAuthToken()}`
-      },
-      body: JSON.stringify(tableData)
-    }).then((_) => {
-      queryClient.invalidateQueries({
-        queryKey: ['tables']
-      });
-    });
-  };
 
   if (error) {
     return (<p>Error: {`${error}`}</p>);
@@ -111,10 +95,6 @@ const TableList = () => {
               </li>
             ))}
           </ul>
-          <Modal title="New Table" buttonLabel="+ Add Table" buttonClassName="hover:cursor-pointer">
-            <p>Create a new table.</p>
-            <AddTableForm addTable={addTable} />
-          </Modal>
         </div>
       );
     }
@@ -122,10 +102,32 @@ const TableList = () => {
 };
 
 const HomePage = () => {
+  const queryClient = useQueryClient();
+  const { getAuthToken } = useAuth();
+
+  const addTable = (tableData: AddTableFormData): void => {
+    fetch('/api/v1/tables', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${getAuthToken()}`
+      },
+      body: JSON.stringify(tableData)
+    }).then((_) => {
+      queryClient.invalidateQueries({
+        queryKey: ['tables']
+      });
+    });
+  };
+
   return (
     <div>
       <h1>Tables</h1>
       <TableList />
+      <Modal title="New Table" buttonLabel="+ Add Table" buttonClassName="hover:cursor-pointer">
+        <p>Create a new table.</p>
+        <AddTableForm addTable={addTable} />
+      </Modal>
     </div>
   );
 };
