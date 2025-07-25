@@ -1,6 +1,7 @@
 package com.example.hello.entity;
 
 import java.util.List;
+import java.util.Set;
 
 import jakarta.persistence.*;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
@@ -24,6 +25,14 @@ public class UserEntity {
   @JsonManagedReference
   @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
   private List<TableEntity> ownTables;
+
+  @JsonManagedReference
+  @ManyToMany
+  @JoinTable(
+    name = "table_shares",
+    joinColumns = @JoinColumn(name = "user_id"),
+    inverseJoinColumns = @JoinColumn(name = "table_id"))
+  private Set<TableEntity> sharedTables;
 
   public UserEntity() {}
 

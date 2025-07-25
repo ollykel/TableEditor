@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "tables")
@@ -20,6 +21,10 @@ public class TableEntity {
     @ManyToOne
     @JoinColumn(name = "owner_id", nullable = false)
     private UserEntity owner;
+
+    @JsonBackReference
+    @ManyToMany(mappedBy = "sharedTables")
+    private Set<UserEntity> sharedUsers;
 
     @Column(nullable = false)
     private int width;
