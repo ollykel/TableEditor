@@ -43,7 +43,9 @@ public class TableController {
       }
     }
 
-    private static class OwnerFilter {
+    private static class OwnerFilter
+      implements TableFilter
+    {
       private boolean     isInverse;
       private Set<Long>   ownerIds;
 
@@ -62,6 +64,14 @@ public class TableController {
 
       public void setOwnerIds(Collection<Long> ownerIds) {
         this.ownerIds = new HashSet(ownerIds);
+      }
+
+      public boolean isValid(TableEntity table) {
+        if (this.getIsInverse()) {
+          return ! this.ownerIds.contains(table.getOwner().getId());
+        } else {
+          return this.ownerIds.contains(table.getOwner().getId());
+        }
       }
 
       // === fromString ========================================================
