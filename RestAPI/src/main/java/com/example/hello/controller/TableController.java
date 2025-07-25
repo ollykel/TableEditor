@@ -30,6 +30,10 @@ public class TableController {
     private final TableCellRepository   tableCellRepository;
     private final UserRepository        userRepository;
 
+    private static interface TableFilter {
+      public boolean isValid(TableEntity table);
+    }
+
     public static class InvalidFilterException
         extends Exception
     {
@@ -128,10 +132,29 @@ public class TableController {
         this.userRepository = userRepository;
     }
 
-    @GetMapping
-    public List<TableEntity> getTables(HttpServletRequest req) {
-      return this.tableRepository.findAll();
-    }
+    // private List<TableEntity> filterTablesByOwner(List<TableEntity> tables, String filter)
+    //   throws InvalidFilterException
+    // {
+    // }
+
+    // @GetMapping
+    // public List<TableEntity> getTables(HttpServletRequest req) {
+    //   // PCode:
+    //   // If no query:
+    //   //  -> return all
+    //   // Else:
+    //   //  get query params
+    //   //  create filter list from query params
+    //   //    -> if unrecognized param, return 400
+    //   //  -> return filtered entities
+    //   String  querys = req.getQueryString();
+
+    //   if (querys == null) {
+    //     return this.tableRepository.findAll();
+    //   } else {
+    //     Map<String, String> queryParams = new HashMap();
+    //   }
+    // }
 
     @PostMapping
     public Optional<TableEntity> createTable(@RequestBody CreateTableRequest data, HttpServletRequest req) {
