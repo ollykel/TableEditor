@@ -1,14 +1,15 @@
-import type TableProps from '@/types/TableProps';
-
-import { useAuth } from '@/context/AuthContext';
 import { Link } from 'react-router';
+import { useForm } from 'react-hook-form';
 import {
   useQuery,
   useQueryClient
 } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
 
+import { useAuth } from '@/context/AuthContext';
 import Modal from '@/components/Modal';
+import ShareTableForm from '@/components/ShareTableForm';
+
+import type TableProps from '@/types/TableProps';
 
 type AddTableFormData = {
   name: string;
@@ -50,13 +51,25 @@ const AddTableForm = (props: AddTableFormProps) => {
   );
 };
 
-const Table = ({ id, name, width, height }: TableProps): React.JSX.Element => {
+interface TableViewProps extends TableProps {
+  isShareable: boolean;
+}
+
+const Table = ({ id, name, width, height, isShareable }: TableViewProps): React.JSX.Element => {
   return (
     <div id={`table-${id}`}>
       <Link to={`/app/tables/${id}`}>
         <h2>{name}</h2>
       </Link>
       <p>{height} X {width}</p>
+      {
+        isShareable && (
+          <Modal title="Share Table" buttonLabel="Share" buttonClassName="hover:cursor-pointer">
+            <h2>Share Table "{name}"</h2>
+            <ShareTableForm tableId={id} onSubmit={() => {}} />
+          </Modal>
+        )
+      }
     </div>
   );
 };
@@ -82,7 +95,7 @@ const TableList = (props: TableListProps): React.JSX.Element => {
       return (
         <div>
           <ul id="table-list">
-            {(tables as TableProps[]).map(table => (
+            {(tables as TableViewProps[]).map(table => (
               <li key={table.id}>
                 <Table {...table} />
               </li>
@@ -106,7 +119,8 @@ const HomePage = () => {
         }
       });
 
-      return await response.json();
+      return ((await response.json()) as TableProps[])
+        .map((table) => ({ ...table, isShareable: true }));
     }
   });
   const sharedWithQueryStatus = useQuery({
@@ -118,7 +132,8 @@ const HomePage = () => {
         }
       });
 
-      return await response.json();
+      return ((await response.json()) as TableProps[])
+        .map((table) => ({ ...table, isShareable: false }));
     }
   });
 
