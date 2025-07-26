@@ -9,6 +9,31 @@ import com.fasterxml.jackson.annotation.JsonManagedReference;
 @Entity
 @Table(name = "users")
 public class UserEntity {
+
+  // === class PublicView ======================================================
+  //
+  // Exposes only information that should be visible to public users (i.e. no
+  // passwords).
+  //
+  // Excludes relational data (i.e. owned tables, shared tables)
+  //
+  // ===========================================================================
+  public static class PublicView {
+      private Long      id;
+      private String    username;
+      private String    email;
+
+      public PublicView(Long id, String username, String email) {
+          this.id = id;
+          this.username = username;
+          this.email = email;
+      }
+
+      public Long     getId() { return this.id; }
+      public String   getUsername() { return this.username; }
+      public String   getEmail() { return this.email; }
+  }
+
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
@@ -66,5 +91,13 @@ public class UserEntity {
 
   public List<TableEntity> getOwnTables() {
     return this.ownTables;
+  }
+
+  public PublicView toPublicView() {
+    return new PublicView(
+      this.getId(),
+      this.getUsername(),
+      this.getEmail()
+    );
   }
 }// end public class UserEntity
