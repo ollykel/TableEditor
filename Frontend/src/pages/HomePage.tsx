@@ -109,6 +109,18 @@ const HomePage = () => {
       return await response.json();
     }
   });
+  const sharedWithQueryStatus = useQuery({
+    queryKey: ['shared_tables'],
+    queryFn: async () => {
+      const response = await fetch('/api/v1/tables?shared_with=me', {
+        'headers': {
+          'Authorization': `Bearer ${getAuthToken()}`
+        }
+      });
+
+      return await response.json();
+    }
+  });
 
   const addTable = (tableData: AddTableFormData): void => {
     fetch('/api/v1/tables', {
@@ -129,6 +141,10 @@ const HomePage = () => {
     <div>
       <h1>My Tables</h1>
       <TableList queryStatus={ownQueryStatus} />
+
+      <h1>Shared With Me</h1>
+      <TableList queryStatus={sharedWithQueryStatus} />
+
       <Modal title="New Table" buttonLabel="+ Add Table" buttonClassName="hover:cursor-pointer">
         <p>Create a new table.</p>
         <AddTableForm addTable={addTable} />

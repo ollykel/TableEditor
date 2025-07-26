@@ -48,12 +48,15 @@ public class TableEntity {
     // Getters and setters
     public Long getId() { return id; }
     public UserEntity getOwner() { return owner; }
+    public Set<UserEntity> getSharedUsers() { return this.sharedUsers; }
     public String getName() { return name; }
     public int getWidth() { return width; }
     public int getHeight() { return height; }
     public List<TableCell> getCells() { return cells; }
 
     public void setOwner(UserEntity owner) { this.owner = owner; }
+    public void addSharedUser(UserEntity user) { this.sharedUsers.add(user); }
+    public void removeSharedUser(UserEntity user) { this.sharedUsers.remove(user); }
     public void setName(String name) { this.name = name; }
     public void setWidth(int width) { this.width = width; }
     public void setHeight(int height) { this.height = height; }

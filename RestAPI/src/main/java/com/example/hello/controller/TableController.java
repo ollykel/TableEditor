@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Collection;
+import java.util.stream.Collectors;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
@@ -140,6 +141,108 @@ public class TableController {
       }
     }
 
+    private static class SharedWithFilter
+      implements TableFilter
+    {
+      private boolean     isInverse;
+      private Set<Long>   sharedWithIds;
+
+      public SharedWithFilter()
+      {
+        this.isInverse = false;
+        this.sharedWithIds = new HashSet();
+      }
+
+      public boolean    getIsInverse() { return this.isInverse; }
+      public Set<Long>  getSharedWithIds() { return this.sharedWithIds; }
+
+      public void setIsInverse(boolean isInverse) {
+        this.isInverse = isInverse;
+      }
+
+      public void setSharedWithIds(Collection<Long> sharedWithIds) {
+        this.sharedWithIds = new HashSet(sharedWithIds);
+      }
+
+      public boolean isValid(TableEntity table) {
+        Set<Long> tableSharedWithIds = table.getSharedUsers().stream()
+          .map(user -> user.getId())
+          .collect(Collectors.toSet());
+
+        tableSharedWithIds.retainAll(this.sharedWithIds);
+
+        if (this.getIsInverse()) {
+          return tableSharedWithIds.isEmpty();
+        } else {
+          return ! tableSharedWithIds.isEmpty();
+        }
+      }
+
+      // === fromString ========================================================
+      //
+      // Generates an SharedWithFilter from a string. If "me" is encountered, it is
+      // replaced with the provided user id corresponding to the currently
+      // authenticated user.
+      //
+      // @param s [IN]        -- The filter string
+      // @param selfId [IN]   -- The id of the user corresponding to "me"
+      // @return An owner filter specifying which owner ids to filter for (or
+      // avoid)
+      // @throws InvalidFilterException if the query string is not in the proper
+      // format
+      //
+      // Expected query string format: {!?}<comma-separated list of one or more
+      // user ids or me>
+      //
+      // CFG:
+      //  S = !T | T
+      //  T = VALID_ID | VALID_ID,T
+      //  VALID_ID = me|<INTEGER>
+      //
+      // =======================================================================
+      public static SharedWithFilter fromString(String s, Long selfId)
+        throws InvalidFilterException
+      {
+        if (s.isEmpty()) {
+          throw new InvalidFilterException("SharedWith filter string cannot be empty");
+        } 
+        
+        SharedWithFilter   out = new SharedWithFilter();
+        String        idString = s;
+
+        if (s.charAt(0) == '!') {
+          out.setIsInverse(true);
+          idString = s.substring(1);
+        }
+
+        String[]  ownerIdStrings = idString.split(",");
+
+        if (ownerIdStrings.length < 1) {
+          throw new InvalidFilterException("SharedWith id filter must contain at least one user id");
+        }
+
+        Set<Long>   sharedWithIds = new HashSet();
+
+        for (String ids : ownerIdStrings) {
+          if(ids.equals("me")) {
+            sharedWithIds.add(selfId);
+          } else {
+            try {
+              sharedWithIds.add(Long.parseLong(ids));
+            } catch (NumberFormatException e) {
+              throw new InvalidFilterException(
+                String.format("SharedWith ids must be long integers or \"me\"")
+              );
+            }
+          }
+        }// end for (String ids : ownerIdStrings)
+
+        out.setSharedWithIds(sharedWithIds);
+
+        return out;
+      }
+    }
+
     public TableController(TableRepository tableRepository, TableCellRepository cellRepository, UserRepository userRepository) {
         this.tableRepository = tableRepository;
         this.tableCellRepository = cellRepository;
@@ -173,6 +276,9 @@ public class TableController {
             switch (filterName) {
               case "owners":
                 tableFilters.add(OwnerFilter.fromString(filterString, selfId));
+                break;
+              case "shared_with":
+                tableFilters.add(SharedWithFilter.fromString(filterString, selfId));
                 break;
               default:
                 // invalid filter
