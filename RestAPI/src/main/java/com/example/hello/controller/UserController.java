@@ -38,7 +38,6 @@ public class UserController {
 
         return ResponseEntity.ok(out);
       } else {
-        // TODO: implement
         for (Map.Entry<String, String[]> entry : params.entrySet()) {
           String    key = entry.getKey();
           String[]  value = entry.getValue();
