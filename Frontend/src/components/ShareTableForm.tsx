@@ -36,10 +36,11 @@ interface UserSearchProps {
   selectedUserId: number;
 }
 
-const ShareTableForm = (_props: ShareTableFormProps): React.JSX.Element => {
+const ShareTableForm = (props: ShareTableFormProps): React.JSX.Element => {
   const { getAuthToken } = useAuth();
   const [userChoices, setUserChoices] = useState<UserChoiceProps[]>([]);
   const [searchedUsers, setSearchedUsers] = useState<UserView[]>([]);
+  const { onSubmit } = props;
 
   const searchedUsersRef = useRef(searchedUsers);
 
@@ -162,9 +163,18 @@ const ShareTableForm = (_props: ShareTableFormProps): React.JSX.Element => {
         />
       </form>
 
+      {/** List of currently selected users **/}
       <div>
         {userChoices.map((choiceProps) => <UserChoice key={choiceProps.email} {...choiceProps} />)}
       </div>
+
+      {/** Submit button **/}
+      <button
+        disabled={userChoices.length < 1}
+        onClick={() => onSubmit({ userIds: userChoices.map(choice => choice.id) })}
+      >
+        Share Table
+      </button>
     </div>
   );
 };

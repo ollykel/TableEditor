@@ -10,6 +10,7 @@ import Modal from '@/components/Modal';
 import ShareTableForm from '@/components/ShareTableForm';
 
 import type TableProps from '@/types/TableProps';
+import type { ShareTableFormData } from '@/components/ShareTableForm';
 
 type AddTableFormData = {
   name: string;
@@ -56,6 +57,25 @@ interface TableViewProps extends TableProps {
 }
 
 const Table = ({ id, name, width, height, isShareable }: TableViewProps): React.JSX.Element => {
+  const { getAuthToken } = useAuth();
+
+  const handleSubmit = (formData: ShareTableFormData) => {
+    fetch(`/api/v1/tables/${id}/share`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${getAuthToken()}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(formData)
+    })
+      .then((resp) => {
+        if (! resp.ok) {
+          alert('Failed to share table');
+        } else {
+          alert('Table shared successfully!');
+        }
+      });
+  };
   return (
     <div id={`table-${id}`}>
       <Link to={`/app/tables/${id}`}>
@@ -66,7 +86,7 @@ const Table = ({ id, name, width, height, isShareable }: TableViewProps): React.
         isShareable && (
           <Modal title="Share Table" buttonLabel="Share" buttonClassName="hover:cursor-pointer">
             <h2>Share Table "{name}"</h2>
-            <ShareTableForm tableId={id} onSubmit={() => {}} />
+            <ShareTableForm tableId={id} onSubmit={handleSubmit} />
           </Modal>
         )
       }
