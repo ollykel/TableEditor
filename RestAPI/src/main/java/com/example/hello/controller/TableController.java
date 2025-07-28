@@ -24,6 +24,7 @@ import com.example.hello.repository.TableCellRepository;
 import com.example.hello.repository.UserRepository;
 import com.example.hello.dto.TableCellRequest;
 import com.example.hello.dto.CreateTableRequest;
+import com.example.hello.dto.TableShareRequest;
 
 @RestController
 @RequestMapping("/api/v1/tables")
@@ -367,5 +368,25 @@ public class TableController {
 
         TableCell saved = this.tableCellRepository.save(cell);
         return ResponseEntity.ok(saved);
+    }
+
+    @PostMapping("{id}/share")
+    public ResponseEntity<?> shareWithUsers(@PathVariable("id") Long tableId, @RequestBody TableShareRequest req) {
+      Optional<TableEntity> tableOpt = this.tableRepository.findById(tableId);
+      if (tableOpt.isEmpty()) {
+          return ResponseEntity.notFound().build();
+      } else {
+        TableEntity       table = tableOpt.get();
+        List<UserEntity>  usersToShare = req.userIds.stream()
+          .map(uid -> this.userRepository.findById(uid))
+          .filter(userOpt -> userOpt.isPresent())
+          .map(userOpt -> userOpt.get())
+          .collect(Collectors.toList());
+
+        table.addSharedUsers(usersToShare);
+        this.tableRepository.save(table);
+
+        return ResponseEntity.ok().build();
+      }
     }
 }

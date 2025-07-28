@@ -5,6 +5,7 @@ import java.util.Set;
 
 import jakarta.persistence.*;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 
 @Entity
 @Table(name = "users")
@@ -51,12 +52,8 @@ public class UserEntity {
   @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
   private List<TableEntity> ownTables;
 
-  @JsonManagedReference
-  @ManyToMany
-  @JoinTable(
-    name = "table_shares",
-    joinColumns = @JoinColumn(name = "user_id"),
-    inverseJoinColumns = @JoinColumn(name = "table_id"))
+  @JsonBackReference
+  @ManyToMany(mappedBy = "sharedUsers")
   private Set<TableEntity> sharedTables;
 
   public UserEntity() {}

@@ -3,6 +3,7 @@ package com.example.hello.entity;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
@@ -22,8 +23,12 @@ public class TableEntity {
     @JoinColumn(name = "owner_id", nullable = false)
     private UserEntity owner;
 
-    @JsonBackReference
-    @ManyToMany(mappedBy = "sharedTables")
+    @JsonManagedReference
+    @ManyToMany
+    @JoinTable(
+      name = "table_shares",
+      joinColumns = @JoinColumn(name = "table_id"),
+      inverseJoinColumns = @JoinColumn(name = "user_id"))
     private Set<UserEntity> sharedUsers;
 
     @Column(nullable = false)
@@ -56,6 +61,7 @@ public class TableEntity {
 
     public void setOwner(UserEntity owner) { this.owner = owner; }
     public void addSharedUser(UserEntity user) { this.sharedUsers.add(user); }
+    public void addSharedUsers(Collection<UserEntity> users) { this.sharedUsers.addAll(users); }
     public void removeSharedUser(UserEntity user) { this.sharedUsers.remove(user); }
     public void setName(String name) { this.name = name; }
     public void setWidth(int width) { this.width = width; }
