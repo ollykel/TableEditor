@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 
+import Page from '@/components/Page';
 import Title from '@/components/Title';
 import LoginForm from '@/components/LoginForm';
 import { useAuth } from '@/context/AuthContext';
@@ -27,13 +28,13 @@ const LoginPage = (props: LoginPageProps): React.JSX.Element => {
   };
 
   return (
-    <div>
+    <Page title="Login">
       <Title />
       <h2>Login</h2>
       <LoginForm
         onSubmit={handleSubmit}
       />
-    </div>
+    </Page>
   );
 };
 

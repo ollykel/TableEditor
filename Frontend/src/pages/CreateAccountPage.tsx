@@ -1,3 +1,4 @@
+import Page from '@/components/Page';
 import Title from '@/components/Title';
 import CreateAccountForm from '@/components/CreateAccountForm';
 
@@ -20,13 +21,13 @@ const CreateAccountPage = (): React.JSX.Element => {
   };
 
   return (
-    <div>
+    <Page title="Create Account">
       <Title />
       <h2>Create Account</h2>
       <CreateAccountForm
         onSubmit={handleSubmit}
       />
-    </div>
+    </Page>
   );
 };
 
