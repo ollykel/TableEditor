@@ -371,22 +371,29 @@ public class TableController {
     }
 
     @PostMapping("{id}/share")
-    public ResponseEntity<?> shareWithUsers(@PathVariable("id") Long tableId, @RequestBody TableShareRequest req) {
+    public ResponseEntity<?> shareWithUsers(@PathVariable("id") Long tableId, @RequestBody TableShareRequest reqBody, HttpServletRequest req) {
+      Long  ownerId = (Long) req.getAttribute("uid");
       Optional<TableEntity> tableOpt = this.tableRepository.findById(tableId);
       if (tableOpt.isEmpty()) {
           return ResponseEntity.notFound().build();
       } else {
         TableEntity       table = tableOpt.get();
-        List<UserEntity>  usersToShare = req.userIds.stream()
-          .map(uid -> this.userRepository.findById(uid))
-          .filter(userOpt -> userOpt.isPresent())
-          .map(userOpt -> userOpt.get())
-          .collect(Collectors.toList());
 
-        table.addSharedUsers(usersToShare);
-        this.tableRepository.save(table);
+        if (! table.getOwner().getId().equals(ownerId)) {
+          // Not authorized to share this table
+          return ResponseEntity.badRequest().build();
+        } else {
+          List<UserEntity>  usersToShare = reqBody.userIds.stream()
+            .map(uid -> this.userRepository.findById(uid))
+            .filter(userOpt -> userOpt.isPresent())
+            .map(userOpt -> userOpt.get())
+            .collect(Collectors.toList());
 
-        return ResponseEntity.ok().build();
+          table.addSharedUsers(usersToShare);
+          this.tableRepository.save(table);
+
+          return ResponseEntity.ok().build();
+        }
       }
     }
 }

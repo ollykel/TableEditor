@@ -2,6 +2,7 @@ package com.example.hello.filter;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -15,12 +16,17 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.example.hello.util.JwtUtil;
+import com.example.hello.repository.UserRepository;
+import com.example.hello.entity.UserEntity;
 
 @Component
 public class JwtFilter extends OncePerRequestFilter {
 
     @Autowired
     private JwtUtil jwtUtil;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -33,14 +39,19 @@ public class JwtFilter extends OncePerRequestFilter {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
             if (jwtUtil.isValid(token)) {
-                String  username = jwtUtil.extractUsername(token);
-                Long    uid = jwtUtil.extractUid(token);
+                String                username = jwtUtil.extractUsername(token);
+                Long                  uid = jwtUtil.extractUid(token);
+                Optional<UserEntity>  userOpt = this.userRepository.findById(uid);
 
-                UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(username, null, List.of());
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-                request.setAttribute("username", username);
-                request.setAttribute("uid", uid);
+                if (userOpt.isPresent()) {
+                  UserEntity  user = userOpt.get();
+                  UsernamePasswordAuthenticationToken authentication =
+                      new UsernamePasswordAuthenticationToken(username, null, List.of());
+                  SecurityContextHolder.getContext().setAuthentication(authentication);
+                  request.setAttribute("username", username);
+                  request.setAttribute("uid", uid);
+                  request.setAttribute("user", user);
+                }
             }
         }
 
