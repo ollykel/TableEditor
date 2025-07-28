@@ -6,7 +6,7 @@ import {
 } from '@tanstack/react-query';
 
 import { useAuth } from '@/context/AuthContext';
-import Page from '@/components/Page';
+import AuthedPage from '@/components/AuthedPage';
 import Modal from '@/components/Modal';
 import ShareTableForm from '@/components/ShareTableForm';
 
@@ -174,7 +174,7 @@ const HomePage = () => {
   };
 
   return (
-    <Page title="Dashboard">
+    <AuthedPage title="Dashboard">
       <h1>My Tables</h1>
       <TableList queryStatus={ownQueryStatus} />
 
@@ -185,7 +185,7 @@ const HomePage = () => {
         <p>Create a new table.</p>
         <AddTableForm addTable={addTable} />
       </Modal>
-    </Page>
+    </AuthedPage>
   );
 };
 

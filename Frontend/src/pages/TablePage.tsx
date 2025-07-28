@@ -4,7 +4,7 @@ import {
 } from '@tanstack/react-query';
 
 import { useAuth } from '@/context/AuthContext';
-import Page from '@/components/Page';
+import AuthedPage from '@/components/AuthedPage';
 import { WebSocketProvider } from '@/context/WebSocketContext';
 import TableEditor from '@/components/TableEditor';
 
@@ -41,12 +41,12 @@ const TablePage = () => {
     const { id: tableId, name } = tableProps;
 
     return (
-      <Page title={name}>
+      <AuthedPage title={name}>
         <h1>Table: {name}</h1>
         <WebSocketProvider>
           <TableEditor tableId={tableId} />
         </WebSocketProvider>
-      </Page>
+      </AuthedPage>
     );
   }
 };// end TablePage 
