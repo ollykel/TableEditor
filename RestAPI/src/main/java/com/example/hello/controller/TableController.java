@@ -260,11 +260,17 @@ public class TableController {
       //  create filter list from query params
       //    -> if unrecognized param, return 400
       //  -> return filtered entities
+      UserEntity              user = (UserEntity) req.getAttribute("user");
       Map<String, String[]>   params = req.getParameterMap();
-      List<TableEntity>     allTables = this.tableRepository.findAll();
+      List<TableEntity>       allTables = this.tableRepository.findAll().stream()
+        .filter(table -> table.userHasAccess(user))
+        .collect(Collectors.toList());
 
       if (params.isEmpty()) {
-        return ResponseEntity.ok(allTables);
+        return ResponseEntity.ok(allTables.stream()
+            .map(table -> table.toPublicView())
+            .collect(Collectors.toList())
+        );
       } else {
         try {
           Long              selfId = (Long) req.getAttribute("uid");
@@ -306,7 +312,10 @@ public class TableController {
             }
           }// end for (TableEntity table : allTables)
 
-          return ResponseEntity.ok(out);
+          return ResponseEntity.ok(out.stream()
+            .map(table -> table.toPublicView())
+            .collect(Collectors.toList())
+          );
         } catch (InvalidFilterException e) {
           return new ResponseEntity(e.getMessage(), HttpStatus.BAD_REQUEST);
         }
@@ -314,19 +323,19 @@ public class TableController {
     }
 
     @PostMapping
-    public Optional<TableEntity> createTable(@RequestBody CreateTableRequest data, HttpServletRequest req) {
+    public ResponseEntity<?> createTable(@RequestBody CreateTableRequest data, HttpServletRequest req) {
       // Initialize blank cells
       Object  uname = req.getAttribute("username");
 
       if (! (uname instanceof String)) {
-        return Optional.empty();
+        return new ResponseEntity(HttpStatus.UNAUTHORIZED);
       }
 
       String                username = (String) uname;
       Optional<UserEntity>  user = this.userRepository.findByUsername(username);
 
       if (! user.isPresent()) {
-        return Optional.empty();
+        return new ResponseEntity(HttpStatus.UNAUTHORIZED);
       } else {
         TableEntity table = new TableEntity(user.get(), data.name, data.width, data.height);
         TableEntity out = this.tableRepository.save(table);
@@ -339,35 +348,70 @@ public class TableController {
           }// end for (int i_col = 0; i_col < table.getWidth(); ++i_col)
         }// end for (int i_row = 0; i_row < table.getHeight(); ++i_row)
 
-        return Optional.of(out);
+        return ResponseEntity.ofNullable(out.toPublicView());
       }
     }
 
     @GetMapping("{id}")
-    public Optional<TableEntity> getTableById(@PathVariable("id") Long tableId) {
-      return this.tableRepository.findById(tableId);
+    public ResponseEntity<?> getTableById(@PathVariable("id") Long tableId, HttpServletRequest req) {
+      UserEntity              user = (UserEntity) req.getAttribute("user");
+      Optional<TableEntity>   tableOpt = this.tableRepository.findById(tableId);
+
+      if (! tableOpt.isPresent()) {
+        return ResponseEntity.notFound().build();
+      } else {
+        TableEntity table = tableOpt.get();
+
+        if (! table.userHasAccess(user)) {
+          return ResponseEntity.notFound().build();
+        } else {
+          return ResponseEntity.ofNullable(table.toPublicView());
+        }
+      }
     }
 
     @GetMapping("{id}/cells")
-    public List<TableCell> getCellsByTableId(@PathVariable("id") Long tableId) {
-      return this.tableCellRepository.findByTableId(tableId);
+    public ResponseEntity<?> getCellsByTableId(@PathVariable("id") Long tableId, HttpServletRequest req) {
+      UserEntity            user = (UserEntity) req.getAttribute("user");
+      Optional<TableEntity> tableOpt = this.tableRepository.findById(tableId);
+
+      if (tableOpt.isEmpty()) {
+        return ResponseEntity.notFound().build();
+      } else {
+        TableEntity table = tableOpt.get();
+
+        if (! table.userHasAccess(user)) {
+          return ResponseEntity.notFound().build();
+        } else {
+          return ResponseEntity.ofNullable(table.getCells());
+        }
+      }
     }
 
     @PostMapping("/{id}/cells")
-    public ResponseEntity<?> addCell(@PathVariable("id") Long tableId, @RequestBody TableCellRequest req) {
+    public ResponseEntity<?> addCell(@PathVariable("id") Long tableId, @RequestBody TableCellRequest reqBody, HttpServletRequest req) {
+        UserEntity            user = (UserEntity) req.getAttribute("user");
         Optional<TableEntity> tableOpt = tableRepository.findById(tableId);
+
         if (tableOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
+        } else {
+          TableEntity table = tableOpt.get();
+
+          if (! table.userHasAccess(user)) {
+            return ResponseEntity.badRequest().build();
+          } else {
+            TableCell cell = new TableCell();
+
+            cell.setTable(table);
+            cell.setRowNum(reqBody.rowNum);
+            cell.setColumnNum(reqBody.columnNum);
+            cell.setText(reqBody.text);
+
+            TableCell saved = this.tableCellRepository.save(cell);
+            return ResponseEntity.ok(saved);
+          }
         }
-
-        TableCell cell = new TableCell();
-        cell.setTable(tableOpt.get());
-        cell.setRowNum(req.rowNum);
-        cell.setColumnNum(req.columnNum);
-        cell.setText(req.text);
-
-        TableCell saved = this.tableCellRepository.save(cell);
-        return ResponseEntity.ok(saved);
     }
 
     @PostMapping("{id}/share")

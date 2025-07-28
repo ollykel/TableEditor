@@ -58,6 +58,19 @@ public class UserEntity {
 
   public UserEntity() {}
 
+  @Override
+  public boolean equals(Object obj) {
+    if (obj == null) {
+      return false;
+    } else if (obj.getClass() != this.getClass()) {
+      return false;
+    } else {
+      UserEntity  other = (UserEntity) obj;
+
+      return other.getId().equals(this.getId());
+    }
+  }
+
   public Long getId() {
     return this.id;
   }

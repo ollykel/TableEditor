@@ -41,6 +41,25 @@ public class TableEntity {
     @OneToMany(mappedBy = "table", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TableCell> cells;
 
+    public static class PublicView {
+        private Long id;
+        private Long ownerId;
+        private int width;
+        private int height;
+
+        public PublicView(TableEntity table) {
+          this.id = table.getId();
+          this.ownerId = table.getOwner().getId();
+          this.width = table.getWidth();
+          this.height = table.getHeight();
+        }
+
+        public Long getId() { return this.id; }
+        public Long getOwnerId() { return this.ownerId; }
+        public int getWidth() { return this.width; }
+        public int getHeight() { return this.height; }
+    }
+
     public TableEntity() {}
 
     public TableEntity(UserEntity owner, String name, int width, int height) {
@@ -48,6 +67,10 @@ public class TableEntity {
         this.name = name;
         this.width = width;
         this.height = height;
+    }
+
+    public PublicView toPublicView() {
+      return new PublicView(this);
     }
 
     // Getters and setters
@@ -67,4 +90,8 @@ public class TableEntity {
     public void setWidth(int width) { this.width = width; }
     public void setHeight(int height) { this.height = height; }
     public void setCells(List<TableCell> cells) { this.cells = cells; }
+
+    public boolean userHasAccess(UserEntity user) {
+      return this.getOwner().equals(user) || this.sharedUsers.contains(user);
+    }
 }
