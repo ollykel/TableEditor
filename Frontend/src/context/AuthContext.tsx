@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 interface AuthContextData {
   isAuthenticated: () => boolean;
   login: (email: string, password: string) => Promise<boolean>;
+  logout: () => void;
   getAuthToken: () => string | null;
 }
 
@@ -12,6 +13,7 @@ const AUTH_TOKEN_LOCALSTORAGE_KEY = 'auth_token';
 const AuthContext = createContext<AuthContextData>({
   isAuthenticated: () => false,
   login: async () => false,
+  logout: async () => {},
   getAuthToken: () => null
 });
 
@@ -46,12 +48,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const logout = () => {
+    localStorage.removeItem(AUTH_TOKEN_LOCALSTORAGE_KEY);
+  };
+
   const getAuthToken = (): string | null => {
     return localStorage.getItem(AUTH_TOKEN_LOCALSTORAGE_KEY);
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, getAuthToken }}>
+    <AuthContext.Provider value={{ isAuthenticated, login, logout, getAuthToken }}>
       {children}
     </AuthContext.Provider>
   );
