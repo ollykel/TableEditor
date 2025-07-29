@@ -1,7 +1,7 @@
 import { useState, createContext, useContext } from 'react';
 import type { ReactNode } from 'react';
 
-interface AuthContextData {
+export interface AuthContextData {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
