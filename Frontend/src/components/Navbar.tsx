@@ -13,14 +13,14 @@ const Navbar = (): React.JSX.Element => {
   };
 
   return (
-    <nav>
-      <div>
+    <nav className="flex flex-row">
+      <div className="flex-10 text-center text-2xl font-semibold hover:underline">
         <Link to="/app/home">My Dashboard</Link>
       </div>
-      <div>
+      <div className="flex-1">
         <button
           onClick={handleLogout}
-          className="hover:cursor-pointer"
+          className="hover:cursor-pointer bg-red-200 p-2 rounded-md hover:bg-red-400"
         >
           Log out
         </button>
