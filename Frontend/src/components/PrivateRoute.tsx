@@ -11,7 +11,7 @@ const PrivateRoute = (props: PropsWithChildren<PrivateRouteProps>): any => {
   const { fallbackUrl, children } = props;
   const { isAuthenticated } = useAuth();
 
-  return isAuthenticated() ? children : <Navigate to={fallbackUrl} replace />;
+  return isAuthenticated ? children : <Navigate to={fallbackUrl} replace />;
 }
 
 export default PrivateRoute;
