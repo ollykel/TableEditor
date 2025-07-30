@@ -20,6 +20,7 @@ public class SecurityConfig {
           .csrf().disable() // disable CSRF for development/testing
           .authorizeHttpRequests(auth -> auth
               .requestMatchers("/api/v1/auth/**").permitAll()
+              .requestMatchers("/api/v1/health").permitAll()
               .requestMatchers(HttpMethod.POST, "/api/v1/users").anonymous()
               .anyRequest().authenticated() // allow all endpoints without auth
           )
