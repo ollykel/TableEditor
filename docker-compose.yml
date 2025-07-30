@@ -26,6 +26,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION_MILLIS: ${JWT_EXPIRATION_MILLIS}
 
   web_socket_server:
     # Handles web sockets for providing real-time interaction with clients.

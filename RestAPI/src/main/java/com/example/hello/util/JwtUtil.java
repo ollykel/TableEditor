@@ -11,7 +11,7 @@ import java.util.Date;
 public class JwtUtil {
 
     private final String secret = System.getenv("JWT_SECRET");
-    private final long expirationMillis = 1000 * 60 * 60; // 1 hour
+    private final long expirationMillis = Integer.parseInt(System.getenv("JWT_EXPIRATION_MILLIS"));
 
     public String generateToken(Long uid, String username) {
         return Jwts.builder()
