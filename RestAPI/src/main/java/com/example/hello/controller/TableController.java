@@ -18,7 +18,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import com.example.hello.entity.TableEntity;
 import com.example.hello.entity.UserEntity;
 import com.example.hello.entity.TableCell;
-import com.example.hello.entity.TableCell;
 import com.example.hello.repository.TableRepository;
 import com.example.hello.repository.TableCellRepository;
 import com.example.hello.repository.UserRepository;
