@@ -71,6 +71,11 @@ public class UserEntity {
     }
   }
 
+  @Override
+  public int hashCode() {
+    return this.getId().hashCode();
+  }
+
   public Long getId() {
     return this.id;
   }
