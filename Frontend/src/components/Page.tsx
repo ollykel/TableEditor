@@ -14,7 +14,7 @@ const Page = (props: PropsWithChildren<PageProps>): React.JSX.Element => {
   }, [title]);
 
   return (
-    <main>
+    <main className="size-full">
       {children}
     </main>
   );

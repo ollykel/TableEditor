@@ -13,7 +13,7 @@ const Navbar = (): React.JSX.Element => {
   };
 
   return (
-    <nav className="flex flex-row bg-gray-100">
+    <nav className="flex flex-row justify-center w-full bg-gray-100">
       <div className="flex-10 text-center text-2xl font-semibold hover:underline">
         <Link to="/app/home">My Dashboard</Link>
       </div>

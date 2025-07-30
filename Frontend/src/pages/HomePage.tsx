@@ -166,16 +166,22 @@ const HomePage = () => {
 
   return (
     <AuthedPage title="Dashboard">
-      <h1>My Tables</h1>
-      <TableList queryStatus={ownQueryStatus} />
+      <div className="flex flex-row flex-grow justify-center w-full">
+        <div id="own-tables" className="w-1/4">
+          <h1 className="text-xl font-semibold">My Tables</h1>
+          <TableList queryStatus={ownQueryStatus} />
 
-      <h1>Shared With Me</h1>
-      <TableList queryStatus={sharedWithQueryStatus} />
+          <Modal title="New Table" buttonLabel="+ Add Table" buttonClassName="hover:cursor-pointer">
+            <p>Create a new table.</p>
+            <AddTableForm addTable={addTable} />
+          </Modal>
+        </div>
 
-      <Modal title="New Table" buttonLabel="+ Add Table" buttonClassName="hover:cursor-pointer">
-        <p>Create a new table.</p>
-        <AddTableForm addTable={addTable} />
-      </Modal>
+        <div id="shared-tables" className="w-1/4">
+          <h1 className="text-xl font-semibold">Shared With Me</h1>
+          <TableList queryStatus={sharedWithQueryStatus} />
+        </div>
+      </div>
     </AuthedPage>
   );
 };
