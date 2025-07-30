@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useLocation } from 'react-router';
 import { Outlet } from 'react-router-dom';
 
 import type { ReactNode } from 'react';
@@ -26,6 +26,7 @@ const AuthorizedFetchContext = createContext<AuthorizedFetchContextData>({
 
 export const AuthorizedFetchProvider = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthenticated, getAuthToken, logout } = useAuth();
 
   const fetchAuthenticated = async (path: string, options?: FetchOptionsType): Promise<Response> => {
@@ -48,8 +49,10 @@ export const AuthorizedFetchProvider = ({ children }: { children: ReactNode }) =
 
       if (resp.status === 403) {
         // we are no longer authenticated; redirect to login page
+        const locationStr = encodeURIComponent(`${location.pathname}?${location.search}`);
+
         logout();
-        navigate('/app/login');
+        navigate(`/app/login?redirect=${locationStr}`);
       }
 
       return resp;

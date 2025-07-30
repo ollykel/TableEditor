@@ -64,13 +64,13 @@ function App() {
             <Route element={<AuthorizedFetchContextLayout />}>
               <Route
                 path={`${APP_ROUTE_PREFIX}/home`}
-                element={<PrivateRoute fallbackUrl="/">
+                element={<PrivateRoute>
                   <HomePage />
                 </PrivateRoute>}
               />
               <Route
                 path={`${APP_ROUTE_PREFIX}/tables/:tableId`}
-                element={<PrivateRoute fallbackUrl="/">
+                element={<PrivateRoute>
                   <TablePage />
                 </PrivateRoute>}
               />

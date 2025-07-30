@@ -1,3 +1,4 @@
+import { useLocation } from 'react-router';
 import { useNavigate } from 'react-router-dom';
 
 import Page from '@/components/Page';
@@ -12,9 +13,15 @@ export interface LoginPageProps {
 }
 
 const LoginPage = (props: LoginPageProps): React.JSX.Element => {
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
   const navigate = useNavigate();
   const { login } = useAuth();
   const { onLoginUrl } = props;
+  const redirectUrl = searchParams.has('redirect') ?
+    decodeURIComponent(searchParams.get('redirect') || '')
+    : onLoginUrl;
+
   const handleSubmit = (loginData: LoginFormData) => {
     const { email, password } = loginData;
     login(email, password)
@@ -22,7 +29,7 @@ const LoginPage = (props: LoginPageProps): React.JSX.Element => {
         if (! loginSuccess) {
           alert('Login failed; try again');
         } else {
-          navigate(onLoginUrl);
+          navigate(redirectUrl);
         }
       });
   };
