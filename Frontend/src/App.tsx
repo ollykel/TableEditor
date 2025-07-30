@@ -5,6 +5,7 @@ import {
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
 import { AuthProvider } from '@/context/AuthContext';
+import { AuthorizedFetchContextLayout } from '@/context/AuthorizedFetchContext';
 
 import PrivateRoute from '@/components/PrivateRoute';
 
@@ -60,18 +61,20 @@ function App() {
             />
 
             {/** protected routes **/}
-            <Route
-              path={`${APP_ROUTE_PREFIX}/home`}
-              element={<PrivateRoute fallbackUrl="/">
-                <HomePage />
-              </PrivateRoute>}
-            />
-            <Route
-              path={`${APP_ROUTE_PREFIX}/tables/:tableId`}
-              element={<PrivateRoute fallbackUrl="/">
-                <TablePage />
-              </PrivateRoute>}
-            />
+            <Route element={<AuthorizedFetchContextLayout />}>
+              <Route
+                path={`${APP_ROUTE_PREFIX}/home`}
+                element={<PrivateRoute fallbackUrl="/">
+                  <HomePage />
+                </PrivateRoute>}
+              />
+              <Route
+                path={`${APP_ROUTE_PREFIX}/tables/:tableId`}
+                element={<PrivateRoute fallbackUrl="/">
+                  <TablePage />
+                </PrivateRoute>}
+              />
+            </Route>
 
             {/** 404 page **/}
             <Route path="*" element={<NotFoundPage />} />

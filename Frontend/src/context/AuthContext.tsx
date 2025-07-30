@@ -1,8 +1,8 @@
-import { createContext, useContext } from 'react';
+import { useState, createContext, useContext } from 'react';
 import type { ReactNode } from 'react';
 
-interface AuthContextData {
-  isAuthenticated: () => boolean;
+export interface AuthContextData {
+  isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   getAuthToken: () => string | null;
@@ -11,14 +11,16 @@ interface AuthContextData {
 const AUTH_TOKEN_LOCALSTORAGE_KEY = 'auth_token';
 
 const AuthContext = createContext<AuthContextData>({
-  isAuthenticated: () => false,
+  isAuthenticated: false,
   login: async () => false,
   logout: async () => {},
   getAuthToken: () => null
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const isAuthenticated = () => localStorage.getItem(AUTH_TOKEN_LOCALSTORAGE_KEY) !== null;
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(
+    localStorage.getItem(AUTH_TOKEN_LOCALSTORAGE_KEY) !== null
+  );
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
@@ -39,6 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return false;
         } else {
           localStorage.setItem(AUTH_TOKEN_LOCALSTORAGE_KEY, body.token);
+          setIsAuthenticated(true);
         }
       }
       
@@ -50,6 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     localStorage.removeItem(AUTH_TOKEN_LOCALSTORAGE_KEY);
+    setIsAuthenticated(false);
   };
 
   const getAuthToken = (): string | null => {

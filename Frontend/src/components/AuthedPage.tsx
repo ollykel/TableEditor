@@ -13,7 +13,7 @@ const AuthedPage = (props: PropsWithChildren<AuthedPageProps>): React.JSX.Elemen
   return (
     <Page title={title}>
       <Navbar />
-      <div>
+      <div className="size-full">
         {children}
       </div>
     </Page>

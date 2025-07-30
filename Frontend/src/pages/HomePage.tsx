@@ -1,11 +1,11 @@
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { useForm } from 'react-hook-form';
 import {
   useQuery,
   useQueryClient
 } from '@tanstack/react-query';
 
-import { useAuth } from '@/context/AuthContext';
+import { useAuthorizedFetch } from '@/context/AuthorizedFetchContext';
 import AuthedPage from '@/components/AuthedPage';
 import Modal from '@/components/Modal';
 import ShareTableForm from '@/components/ShareTableForm';
@@ -58,13 +58,12 @@ interface TableViewProps extends TableProps {
 }
 
 const Table = ({ id, name, width, height, isShareable }: TableViewProps): React.JSX.Element => {
-  const { getAuthToken } = useAuth();
+  const { fetchAuthenticated } = useAuthorizedFetch();
 
   const handleSubmit = (formData: ShareTableFormData) => {
-    fetch(`/api/v1/tables/${id}/share`, {
+    fetchAuthenticated(`/api/v1/tables/${id}/share`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${getAuthToken()}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(formData)
@@ -130,15 +129,12 @@ const TableList = (props: TableListProps): React.JSX.Element => {
 
 const HomePage = () => {
   const queryClient = useQueryClient();
-  const { getAuthToken } = useAuth();
+  const { fetchAuthenticated } = useAuthorizedFetch();
+
   const ownQueryStatus = useQuery({
     queryKey: ['own_tables'],
     queryFn: async () => {
-      const response = await fetch('/api/v1/tables?owners=me', {
-        'headers': {
-          'Authorization': `Bearer ${getAuthToken()}`
-        }
-      });
+      const response = await fetchAuthenticated('/api/v1/tables?owners=me');
 
       return ((await response.json()) as TableProps[])
         .map((table) => ({ ...table, isShareable: true }));
@@ -147,11 +143,7 @@ const HomePage = () => {
   const sharedWithQueryStatus = useQuery({
     queryKey: ['shared_tables'],
     queryFn: async () => {
-      const response = await fetch('/api/v1/tables?shared_with=me', {
-        'headers': {
-          'Authorization': `Bearer ${getAuthToken()}`
-        }
-      });
+      const response = await fetchAuthenticated('/api/v1/tables?shared_with=me');
 
       return ((await response.json()) as TableProps[])
         .map((table) => ({ ...table, isShareable: false }));
@@ -159,11 +151,10 @@ const HomePage = () => {
   });
 
   const addTable = (tableData: AddTableFormData): void => {
-    fetch('/api/v1/tables', {
+    fetchAuthenticated('/api/v1/tables', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${getAuthToken()}`
       },
       body: JSON.stringify(tableData)
     }).then((_) => {
@@ -175,16 +166,22 @@ const HomePage = () => {
 
   return (
     <AuthedPage title="Dashboard">
-      <h1>My Tables</h1>
-      <TableList queryStatus={ownQueryStatus} />
+      <div className="flex flex-row flex-grow justify-center w-full">
+        <div id="own-tables" className="w-1/4">
+          <h1 className="text-xl font-semibold">My Tables</h1>
+          <TableList queryStatus={ownQueryStatus} />
 
-      <h1>Shared With Me</h1>
-      <TableList queryStatus={sharedWithQueryStatus} />
+          <Modal title="New Table" buttonLabel="+ Add Table" buttonClassName="hover:cursor-pointer">
+            <p>Create a new table.</p>
+            <AddTableForm addTable={addTable} />
+          </Modal>
+        </div>
 
-      <Modal title="New Table" buttonLabel="+ Add Table" buttonClassName="hover:cursor-pointer">
-        <p>Create a new table.</p>
-        <AddTableForm addTable={addTable} />
-      </Modal>
+        <div id="shared-tables" className="w-1/4">
+          <h1 className="text-xl font-semibold">Shared With Me</h1>
+          <TableList queryStatus={sharedWithQueryStatus} />
+        </div>
+      </div>
     </AuthedPage>
   );
 };
