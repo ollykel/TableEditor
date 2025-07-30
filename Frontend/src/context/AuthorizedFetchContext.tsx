@@ -1,4 +1,4 @@
-import { useState, createContext, useContext } from 'react';
+import { createContext, useContext } from 'react';
 import { useNavigate } from 'react-router';
 import { Outlet } from 'react-router-dom';
 
@@ -6,21 +6,29 @@ import type { ReactNode } from 'react';
 
 import { useAuth } from '@/context/AuthContext';
 
-export interface AuthorizedFetchContextData {
-  fetchAuthenticated: (path: string, params: object) => Promise<Response>;
+export interface FetchOptionsType {
+  headers?: object;
+  method?: string;
+  body?: string;
 }
 
-const AuthorizedFetchContext = createContext<AuthContextData>({
-  fetchAuthenticated: (_path: string, _params: object) => new Promise(new Response(null, {
-    status: 400
-  }))
+export interface AuthorizedFetchContextData {
+  fetchAuthenticated: (path: string, options?: FetchOptionsType) => Promise<Response>;
+}
+
+const AuthorizedFetchContext = createContext<AuthorizedFetchContextData>({
+  fetchAuthenticated: (_path: string, _options?: FetchOptionsType) => new Promise(
+    () => new Response(null, {
+      status: 400
+    })
+  )
 });
 
 export const AuthorizedFetchProvider = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
   const { isAuthenticated, getAuthToken, logout } = useAuth();
 
-  const fetchAuthenticated = async (path: string, params: object | null): Promise<Response> => {
+  const fetchAuthenticated = async (path: string, options?: FetchOptionsType): Promise<Response> => {
     if (! isAuthenticated) {
       // TODO: add redirect address to login query parameter
       navigate('/app/login');
@@ -29,11 +37,11 @@ export const AuthorizedFetchProvider = ({ children }: { children: ReactNode }) =
       }));
     } else {
       const headers = ({
-        ...((params && params.headers) || ({})),
+        ...((options && options.headers) || ({})),
         'Authorization': `Bearer ${getAuthToken()}`
       });
       const fetchParams = ({
-        ...(params || ({})),
+        ...(options || ({})),
         headers
       });
       const resp = await fetch(path, fetchParams);

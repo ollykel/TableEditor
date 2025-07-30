@@ -3,7 +3,6 @@ import {
   useQuery
 } from '@tanstack/react-query';
 
-import { useAuth } from '@/context/AuthContext';
 import { useAuthorizedFetch } from '@/context/AuthorizedFetchContext';
 import AuthedPage from '@/components/AuthedPage';
 import { WebSocketProvider } from '@/context/WebSocketContext';
@@ -13,7 +12,6 @@ import type TableProps from '@/types/TableProps';
 
 const TablePage = () => {
   const { tableId } = useParams();
-  const { getAuthToken } = useAuth();
   const { fetchAuthenticated } = useAuthorizedFetch();
   const { isPending, error, data: tableProps, isFetching } = useQuery({
     queryKey: ['tables', tableId],
