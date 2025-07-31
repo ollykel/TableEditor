@@ -4,7 +4,7 @@ export interface AppConfig {
     home: string;
     login: string;
     createAccount: string;
-    table: string;
+    tables: string;
   }
 }
 
