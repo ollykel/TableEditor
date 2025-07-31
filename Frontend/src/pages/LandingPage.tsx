@@ -12,7 +12,7 @@ import type { LoginFormData } from '@/components/LoginForm';
 
 export interface LandingPageProps {}
 
-const LandingPage = (props: LandingPageProps): React.JSX.Element => {
+const LandingPage = (): React.JSX.Element => {
   const navigate = useNavigate();
   const { login } = useAuth();
   const handleSubmit = (loginData: LoginFormData) => {

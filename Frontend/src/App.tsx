@@ -17,8 +17,6 @@ import TablePage from '@/pages/TablePage';
 import LandingPage from '@/pages/LandingPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 
-const APP_ROUTE_PREFIX = '/app';
-
 function App() {
   const queryClient = new QueryClient();
 

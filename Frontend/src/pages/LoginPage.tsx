@@ -12,7 +12,7 @@ import type { LoginFormData } from '@/components/LoginForm';
 
 export interface LoginPageProps {}
 
-const LoginPage = (props: LoginPageProps): React.JSX.Element => {
+const LoginPage = (): React.JSX.Element => {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const navigate = useNavigate();

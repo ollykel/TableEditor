@@ -29,17 +29,10 @@ const ErrorOther = (statusCode: number, statusText: string): ErrorOther => ({
 
 type TableFetchError = ErrorNotFound | ErrorOther;
 
-interface TableFetchResult {
-  isPending: boolean;
-  error: TableFetchError;
-  tableProps: TableProps;
-  isFetching: boolean;
-}
-
 const TablePage = () => {
   const { tableId } = useParams();
   const { fetchAuthenticated } = useAuthorizedFetch();
-  const { isPending, error, data: tableProps, isFetching }: TableFetchResult = useQuery({
+  const { isPending, error, data: tableProps, isFetching } = useQuery<TableProps, TableFetchError>({
     retry: false,
     queryKey: ['tables', tableId],
     queryFn: async () => {
@@ -50,7 +43,7 @@ const TablePage = () => {
       } else if (! resp.ok) {
         throw ErrorOther(resp.status, resp.statusText);
       } else {
-        return await resp.json() as TableProps;
+        return await resp.json();
       }
     }
   });
