@@ -8,7 +8,6 @@ import Title from '@/components/Title';
 import LoginForm from '@/components/LoginForm';
 import { useAuth } from '@/context/AuthContext';
 
-import type { PropsWithChildren } from 'react';
 import type { LoginFormData } from '@/components/LoginForm';
 
 export interface LoginPageProps {}

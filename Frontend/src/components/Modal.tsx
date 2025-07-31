@@ -9,7 +9,7 @@ export interface ModalProps {
 }
 
 export interface UseModalResult {
-  Modal: (props: PropsWithChildren<ModalProps>) => React.JSX.Element;
+  Modal: (props: PropsWithChildren<ModalProps>) => React.JSX.Element | null;
   openModal: () => void;
   closeModal: () => void;
 }
