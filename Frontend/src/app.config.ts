@@ -17,6 +17,6 @@ export default {
     home: `${APP_ROUTES_ROOT}/home`,
     login: `${APP_ROUTES_ROOT}/login`,
     createAccount: `${APP_ROUTES_ROOT}/account`,
-    table: `${APP_ROUTES_ROOT}/tables`
+    tables: `${APP_ROUTES_ROOT}/tables`
   }
 };

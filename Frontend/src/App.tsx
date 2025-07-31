@@ -4,6 +4,7 @@ import {
 } from '@tanstack/react-query';
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
+import config from '@/app.config';
 import { AuthProvider } from '@/context/AuthContext';
 import { AuthorizedFetchContextLayout } from '@/context/AuthorizedFetchContext';
 
@@ -30,46 +31,38 @@ function App() {
             <Route
               path="/"
               element={
-                <LandingPage
-                  onLoginUrl={`${APP_ROUTE_PREFIX}/home`}
-                  createAccountUrl={`${APP_ROUTE_PREFIX}/create_account`}
-                />
+                <LandingPage />
               }
             />
             <Route
-              path={APP_ROUTE_PREFIX}
+              path={config.routes.appRoot}
               element={
-                <LandingPage
-                  onLoginUrl={`${APP_ROUTE_PREFIX}/home`}
-                  createAccountUrl={`${APP_ROUTE_PREFIX}/create_account`}
-                />
+                <LandingPage />
               }
             />
 
             <Route
-              path={`${APP_ROUTE_PREFIX}/create_account`}
+              path={config.routes.createAccount}
               element={ <CreateAccountPage /> }
             />
 
             <Route
-              path={`${APP_ROUTE_PREFIX}/login`}
+              path={config.routes.login}
               element={
-                <LoginPage
-                  onLoginUrl={`${APP_ROUTE_PREFIX}/home`}
-                />
+                <LoginPage />
               }
             />
 
             {/** protected routes **/}
             <Route element={<AuthorizedFetchContextLayout />}>
               <Route
-                path={`${APP_ROUTE_PREFIX}/home`}
+                path={config.routes.home}
                 element={<PrivateRoute>
                   <HomePage />
                 </PrivateRoute>}
               />
               <Route
-                path={`${APP_ROUTE_PREFIX}/tables/:tableId`}
+                path={`${config.routes.tables}/:tableId`}
                 element={<PrivateRoute>
                   <TablePage />
                 </PrivateRoute>}

@@ -1,6 +1,8 @@
 import { useLocation } from 'react-router';
 import { useNavigate } from 'react-router-dom';
 
+import config from '@/app.config';
+
 import Page from '@/components/Page';
 import Title from '@/components/Title';
 import LoginForm from '@/components/LoginForm';
@@ -8,19 +10,16 @@ import { useAuth } from '@/context/AuthContext';
 
 import type { LoginFormData } from '@/components/LoginForm';
 
-export interface LoginPageProps {
-  onLoginUrl: string;
-}
+export interface LoginPageProps {}
 
 const LoginPage = (props: LoginPageProps): React.JSX.Element => {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const navigate = useNavigate();
   const { login } = useAuth();
-  const { onLoginUrl } = props;
   const redirectUrl = searchParams.has('redirect') ?
     decodeURIComponent(searchParams.get('redirect') || '')
-    : onLoginUrl;
+    : config.routes.home;
 
   const handleSubmit = (loginData: LoginFormData) => {
     const { email, password } = loginData;
