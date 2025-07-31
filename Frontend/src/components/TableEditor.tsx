@@ -203,7 +203,6 @@ export const TableEditor: React.FC<TableEditorProps> = (props: TableEditorProps)
 
   return (
     <div>
-      <h2>Collaborative Table Editor</h2>
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${nCols}, auto)`, gap: '10px' }}>
         {table.map((row, i) =>
           row.map((cell, j) => makeCell(cell, i, j))
