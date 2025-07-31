@@ -174,9 +174,6 @@ export const TableEditor: React.FC<TableEditorProps> = (props: TableEditorProps)
     }
   }, [isConnected, connect]);
 
-  // TODO: remove debug
-  console.log('Table:', table);
-
   const makeCell = (cell: TableCellData, row: number, col: number): React.JSX.Element => {
     const clientId = clientIdRef.current;
     const { text, owner_id: ownerId } = cell;
