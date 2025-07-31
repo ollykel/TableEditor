@@ -4,10 +4,11 @@ import {
   useQuery,
   useQueryClient
 } from '@tanstack/react-query';
+import { X } from 'lucide-react';
 
 import { useAuthorizedFetch } from '@/context/AuthorizedFetchContext';
 import AuthedPage from '@/components/AuthedPage';
-import Modal from '@/components/Modal';
+import { useModal } from '@/components/Modal';
 import ShareTableForm from '@/components/ShareTableForm';
 
 import type TableProps from '@/types/TableProps';
@@ -59,6 +60,7 @@ interface TableViewProps extends TableProps {
 
 const Table = ({ id, name, width, height, isShareable }: TableViewProps): React.JSX.Element => {
   const { fetchAuthenticated } = useAuthorizedFetch();
+  const { Modal: ShareTableModal, openModal, closeModal } = useModal();
 
   const handleSubmit = (formData: ShareTableFormData) => {
     fetchAuthenticated(`/api/v1/tables/${id}/share`, {
@@ -73,6 +75,7 @@ const Table = ({ id, name, width, height, isShareable }: TableViewProps): React.
           alert('Failed to share table');
         } else {
           alert('Table shared successfully!');
+          closeModal();
         }
       });
   };
@@ -84,10 +87,15 @@ const Table = ({ id, name, width, height, isShareable }: TableViewProps): React.
       <p>{height} X {width}</p>
       {
         isShareable && (
-          <Modal title="Share Table" buttonLabel="Share" buttonClassName="hover:cursor-pointer">
-            <h2>Share Table "{name}"</h2>
-            <ShareTableForm tableId={id} onSubmit={handleSubmit} />
-          </Modal>
+          <div>
+            <button onClick={openModal}>
+              Share Table
+            </button>
+            <ShareTableModal width="50%" height="50%">
+              <h2>Share Table "{name}"</h2>
+              <ShareTableForm tableId={id} onSubmit={handleSubmit} />
+            </ShareTableModal>
+          </div>
         )
       }
     </div>
@@ -150,6 +158,8 @@ const HomePage = () => {
     }
   });
 
+  const { Modal: NewTableModal, openModal, closeModal } = useModal();
+
   const addTable = (tableData: AddTableFormData): void => {
     fetchAuthenticated('/api/v1/tables', {
       method: 'POST',
@@ -161,6 +171,7 @@ const HomePage = () => {
       queryClient.invalidateQueries({
         queryKey: ['own_tables']
       });
+      closeModal();
     });
   };
 
@@ -171,10 +182,17 @@ const HomePage = () => {
           <h1 className="text-xl font-semibold">My Tables</h1>
           <TableList queryStatus={ownQueryStatus} />
 
-          <Modal title="New Table" buttonLabel="+ Add Table" buttonClassName="hover:cursor-pointer">
+          <button onClick={openModal}>
+            + Create Table
+          </button>
+
+          <NewTableModal width="50%" height="50%">
+            <div className="flex justify-end">
+              <X />
+            </div>
             <p>Create a new table.</p>
             <AddTableForm addTable={addTable} />
-          </Modal>
+          </NewTableModal>
         </div>
 
         <div id="shared-tables" className="w-1/4">
