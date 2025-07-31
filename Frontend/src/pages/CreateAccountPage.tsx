@@ -1,3 +1,5 @@
+import { useNavigate } from 'react-router';
+
 import Page from '@/components/Page';
 import Title from '@/components/Title';
 import CreateAccountForm from '@/components/CreateAccountForm';
@@ -5,6 +7,8 @@ import CreateAccountForm from '@/components/CreateAccountForm';
 import type { CreateAccountFormData } from '@/components/CreateAccountForm';
 
 const CreateAccountPage = (): React.JSX.Element => {
+  const navigate = useNavigate();
+
   const handleSubmit = (accountData: CreateAccountFormData): void => {
     fetch('/api/v1/users', {
       method: 'POST',
@@ -16,6 +20,7 @@ const CreateAccountPage = (): React.JSX.Element => {
           alert('Failed to create account');
         } else {
           alert('Account created successfully!');
+          navigate('/app/login');
         }
       });
   };
