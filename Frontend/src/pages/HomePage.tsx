@@ -4,12 +4,16 @@ import {
   useQuery,
   useQueryClient
 } from '@tanstack/react-query';
-import { X } from 'lucide-react';
+import {
+  X,
+  Plus
+} from 'lucide-react';
 
 import { useAuthorizedFetch } from '@/context/AuthorizedFetchContext';
 import AuthedPage from '@/components/AuthedPage';
 import { useModal } from '@/components/Modal';
 import ShareTableForm from '@/components/ShareTableForm';
+import Button from '@/components/Button';
 
 import type TableProps from '@/types/TableProps';
 import type { ShareTableFormData } from '@/components/ShareTableForm';
@@ -33,23 +37,37 @@ const AddTableForm = (props: AddTableFormProps) => {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)}>
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="flex flex-col place-content-center"
+    >
+      <label htmlFor="name">Name: </label>
       <input
         {...register('name', { required: 'Name is required' })}
         placeholder="Name"
       />
       {errors.name && <span>{errors.name.message}</span>}
+
+      <label htmlFor="width">Width: </label>
       <input
         {...register('width', { required: 'Width is required' })}
         placeholder="Width"
       />
       {errors.width && <span>{errors.width.message}</span>}
+
+      <label htmlFor="height">Height: </label>
       <input
         {...register('height', { required: 'Height is required' })}
         placeholder="Height"
       />
       {errors.height && <span>{errors.height.message}</span>}
-      <button type="submit">Add Table</button>
+
+      <Button
+        type="submit"
+        className="bg-blue-400 w-full mt-8"
+      >
+        Add Table
+      </Button>
     </form>
   );
 };
@@ -88,7 +106,10 @@ const Table = ({ id, name, width, height, isShareable }: TableViewProps): React.
       {
         isShareable && (
           <div>
-            <button onClick={openModal}>
+            <button
+              onClick={openModal}
+              className="hover:cursor-pointer text-white bg-blue-600 px-4 py-1 rounded-md"
+            >
               Share Table
             </button>
             <ShareTableModal width="50%" height="50%">
@@ -182,16 +203,23 @@ const HomePage = () => {
           <h1 className="text-xl font-semibold">My Tables</h1>
           <TableList queryStatus={ownQueryStatus} />
 
-          <button onClick={openModal}>
-            + Create Table
-          </button>
+          <Button onClick={openModal} className="mt-2 bg-orange-400">
+            <Plus /> Create Table
+          </Button>
 
-          <NewTableModal width="50%" height="50%">
+          <NewTableModal width="25%" height="50%">
             <div className="flex justify-end">
-              <X />
+              <button
+                onClick={closeModal}
+                className="hover:cursor-pointer"
+              >
+                <X />
+              </button>
             </div>
-            <p>Create a new table.</p>
-            <AddTableForm addTable={addTable} />
+            <div className="p-4">
+              <h2 className="text-center text-2xl font-semibold mb-4">Create a new table</h2>
+              <AddTableForm addTable={addTable} />
+            </div>
           </NewTableModal>
         </div>
 
