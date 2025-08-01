@@ -232,12 +232,14 @@ const HomePage = () => {
   return (
     <AuthedPage title="Dashboard">
       <div className="flex flex-row flex-grow justify-center w-full">
-        <div id="own-tables" className="w-1/4">
-          <h1 className="text-xl font-semibold">My Tables</h1>
+        <div id="own-tables" className="w-2/5">
+          <div className="flex flex-row items-baseline">
+            <h1 className="text-2xl font-semibold mr-2">My Tables</h1>
 
-          <Button onClick={openModal} className="mt-2 bg-orange-400">
-            <Plus /> Create Table
-          </Button>
+            <Button onClick={openModal} className="mt-2 bg-orange-400 text-sm">
+              <Plus size={18} /> Create Table
+            </Button>
+          </div>
 
           <TableList queryStatus={ownQueryStatus} />
 
@@ -257,8 +259,8 @@ const HomePage = () => {
           </NewTableModal>
         </div>
 
-        <div id="shared-tables" className="w-1/4">
-          <h1 className="text-xl font-semibold">Shared With Me</h1>
+        <div id="shared-tables" className="w-2/5">
+          <h1 className="text-2xl font-semibold">Shared With Me</h1>
           <TableList queryStatus={sharedWithQueryStatus} />
         </div>
       </div>
