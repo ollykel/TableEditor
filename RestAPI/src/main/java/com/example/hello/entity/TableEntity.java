@@ -96,6 +96,10 @@ public class TableEntity {
     public void setOwner(UserEntity owner) { this.owner = owner; }
     public void addSharedUser(UserEntity user) { this.sharedUsers.add(user); }
     public void addSharedUsers(Collection<UserEntity> users) { this.sharedUsers.addAll(users); }
+    public void setSharedUsers(Collection<UserEntity> users) {
+      this.sharedUsers.retainAll(users);
+      this.sharedUsers.addAll(users);
+    }
     public void removeSharedUser(UserEntity user) { this.sharedUsers.remove(user); }
     public void setName(String name) { this.name = name; }
     public void setWidth(int width) { this.width = width; }
