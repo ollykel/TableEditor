@@ -13,6 +13,7 @@ import { useAuthorizedFetch } from '@/context/AuthorizedFetchContext';
 import AuthedPage from '@/components/AuthedPage';
 import { useModal } from '@/components/Modal';
 import ShareTableForm from '@/components/ShareTableForm';
+import Card from '@/components/Card';
 import Button from '@/components/Button';
 
 import type TableProps from '@/types/TableProps';
@@ -116,11 +117,11 @@ const Table = (props: TableViewProps): React.JSX.Element => {
   };
 
   return (
-    <div id={`table-${id}`}>
+    <Card className="w-3/4">
       <Link to={`/app/tables/${id}`}>
-        <h2>{name}</h2>
+        <h2 className="text-lg font-semibold">{name}</h2>
       </Link>
-      <p>{height} X {width}</p>
+      <p>Dimensions: {height} X {width}</p>
       {
         isShareable && (
           <div>
@@ -151,7 +152,7 @@ const Table = (props: TableViewProps): React.JSX.Element => {
           </div>
         )
       }
-    </div>
+    </Card>
   );
 };
 
@@ -233,11 +234,12 @@ const HomePage = () => {
       <div className="flex flex-row flex-grow justify-center w-full">
         <div id="own-tables" className="w-1/4">
           <h1 className="text-xl font-semibold">My Tables</h1>
-          <TableList queryStatus={ownQueryStatus} />
 
           <Button onClick={openModal} className="mt-2 bg-orange-400">
             <Plus /> Create Table
           </Button>
+
+          <TableList queryStatus={ownQueryStatus} />
 
           <NewTableModal width="25%" height="50%">
             <div className="flex justify-end">
