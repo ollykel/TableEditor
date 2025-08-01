@@ -16,7 +16,7 @@ import ShareTableForm from '@/components/ShareTableForm';
 import Button from '@/components/Button';
 
 import type TableProps from '@/types/TableProps';
-import type { ShareTableFormData } from '@/components/ShareTableForm';
+import type { UserView } from '@/types/User';
 
 type AddTableFormData = {
   name: string;
@@ -80,13 +80,27 @@ const Table = ({ id, name, width, height, isShareable }: TableViewProps): React.
   const { fetchAuthenticated } = useAuthorizedFetch();
   const { Modal: ShareTableModal, openModal, closeModal } = useModal();
 
-  const handleSubmit = (formData: ShareTableFormData) => {
+  const fetchUsersByUsernameOrEmail = async (query: string): Promise<UserView[]> => {
+    const queryEncoded = encodeURIComponent(query);
+    const resp = await fetchAuthenticated(`/api/v1/users?starts_with=${queryEncoded}`);
+
+    if (! resp.ok) {
+      // TODO: error handling logic here
+      return [];
+    } else {
+      return await resp.json();
+    }
+  };
+
+  const handleSubmit = (users: UserView[]) => {
+    const payload = ({ userIds: users.map((u: UserView) => u.id) });
+
     fetchAuthenticated(`/api/v1/tables/${id}/share`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(formData)
+      body: JSON.stringify(payload)
     })
       .then((resp) => {
         if (! resp.ok) {
@@ -97,6 +111,7 @@ const Table = ({ id, name, width, height, isShareable }: TableViewProps): React.
         }
       });
   };
+
   return (
     <div id={`table-${id}`}>
       <Link to={`/app/tables/${id}`}>
@@ -112,9 +127,20 @@ const Table = ({ id, name, width, height, isShareable }: TableViewProps): React.
             >
               Share Table
             </button>
-            <ShareTableModal width="50%" height="50%">
-              <h2>Share Table "{name}"</h2>
-              <ShareTableForm tableId={id} onSubmit={handleSubmit} />
+            <ShareTableModal width="50%" height="min-content">
+              <div className="flex justify-end">
+                <button
+                  onClick={closeModal}
+                  className="hover:cursor-pointer"
+                >
+                  <X />
+                </button>
+              </div>
+              <h2 className="text-xl font-semibold text-center">Share Table "{name}"</h2>
+              <ShareTableForm
+                fetchUsers={fetchUsersByUsernameOrEmail}
+                submitUsers={handleSubmit}
+              />
             </ShareTableModal>
           </div>
         )

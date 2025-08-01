@@ -1,180 +1,146 @@
 import { useState, useRef, useEffect } from 'react';
-import { useForm } from '@tanstack/react-form';
 
-import { useAuth } from '@/context/AuthContext';
+import { X } from 'lucide-react';
+
+import Button from '@/components/Button';
 
 import type { UserView } from '@/types/User';
 
-export interface ShareTableFormData {
-  userIds: number[];
+interface UserDropdownListProps {
+  users: UserView[];
+  getUserId: (user: UserView) => string | number;
+  getUserLabel: (user: UserView) => string;
+  onSelectUser: (user: UserView) => any;
 }
 
-export interface ShareTableFormProps {
-  tableId: number;
-  onSubmit: (formData: ShareTableFormData) => void;
+const UserDropdownList = (props: UserDropdownListProps): React.JSX.Element | null => {
+  const { users, getUserId, getUserLabel, onSelectUser } = props;
+  const UserOption = ({ user }: { user: UserView }) => {
+    return (
+      <button
+        onClick={() => onSelectUser(user)}
+        className="border-b-1 border-gray-200 bg-white hover:bg-blue-200 hover:cursor-pointer"
+      >
+        {getUserLabel(user)}
+      </button>
+    );
+  };
+
+  if (! users) {
+    return null;
+  } else {
+    return (
+      <div className="relative w-full items-center">
+        <div
+          className="absolute z-100 flex flex-col"
+        >
+          {users.map((u) => <UserOption key={getUserId(u)} user={u} />)}
+        </div>
+      </div>
+    );
+  }
+};// end UserDropdownList
+
+interface SelectionPanelProps {
+  options: UserView[];
+  getUserId: (user: UserView) => string | number;
+  getUserLabel: (user: UserView) => string;
+  onRemoveOption: (option: UserView) => any;
 }
 
-interface UserChoiceProps {
-  id: number;
-  username: string;
-  email: string;
-  onRemove: () => void;
-}
+const SelectionPanel = (props: SelectionPanelProps): React.JSX.Element => {
+  const { options, getUserId, getUserLabel, onRemoveOption } = props;
 
-const UserChoice = (props: UserChoiceProps) => {
-  const { username, email, onRemove } = props;
+  const SelectOption = ({ user }: { user: UserView }) => (
+    <div className="flex flex-row h-min shrink m-1 p-1 bg-gray-400 text-black text-sm rounded-md">
+      <button
+        onClick={() => onRemoveOption(user)}
+        className="hover:cursor-pointer"
+      >
+        <X size={18} />
+      </button>
+      <span>
+        {getUserLabel(user)}
+      </span>
+    </div>
+  );
+
   return (
-    <div>
-      <button onClick={onRemove} className="hover:curor-pointer">X</button>
-      <span>{username} ({email})</span>
+    <div
+      className="flex flex-row flex-wrap min-h-12 border-1 border-black w-full"
+    >
+      {options.map((u) => <SelectOption key={getUserId(u)} user={u} />)}
     </div>
   );
 };
 
-interface UserSearchProps {
-  query: string;
-  selectedUserId: number;
+export interface ShareTableFormProps {
+  fetchUsers: (query: string) => Promise<UserView[]>;
+  submitUsers: (users: UserView[]) => void;
 }
 
-const ShareTableForm = (props: ShareTableFormProps): React.JSX.Element => {
-  const { getAuthToken } = useAuth();
-  const [userChoices, setUserChoices] = useState<UserChoiceProps[]>([]);
-  const [searchedUsers, setSearchedUsers] = useState<UserView[]>([]);
-  const { onSubmit } = props;
-
-  const searchedUsersRef = useRef(searchedUsers);
+const ShareTableForm = (props: ShareTableFormProps) => {
+  const { fetchUsers, submitUsers } = props;
+  const [query, setQuery] = useState<string>('');
+  const queryRef = useRef<string>(query);
+  const [userOptions, setUserOptions] = useState<UserView[]>([]);
+  const [persistentUsers, setPersistentUsers] = useState<UserView[]>([]);
 
   useEffect(() => {
-    searchedUsersRef.current = searchedUsers;
-  }, [searchedUsers]);
+    queryRef.current = query;
+  }, [query]);
 
-  const queryUsers = async (query: string): Promise<UserView[]> => {
-    const resp = await fetch(`/api/v1/users?starts_with=${query}`, {
-      headers: {
-        'Authorization': `Bearer ${getAuthToken()}`
-      }
-    });
-
-    if (! resp.ok) {
-      return [];
-    } else {
-      return (await resp.json() as UserView[]);
-    }
+  const handleChange = (ev: React.ChangeEvent<HTMLInputElement>) => {
+    ev.preventDefault();
+    setQuery(ev.target.value);
+    fetchUsers(ev.target.value).then((users) => setUserOptions(users));
   };
 
-  const addUserChoice = (userView: UserView) => {
-    const { id, username, email } = userView;
-    const newUserChoice : UserChoiceProps = ({
-      id, username, email,
-      onRemove: () => {
-        setUserChoices((choices) => choices.filter((choice) => choice.id !== id));
-      }
-    });
-
-    setUserChoices((choices) => [...choices, newUserChoice]);
+  const handleSelectUser = (user: UserView) => {
+    setQuery('');
+    setPersistentUsers((existing) => [...existing, user]);
   };
 
-  const searchForm = useForm({
-    defaultValues: {
-      query: "",
-      selectedUserId: -1
-    },
-    onSubmit: async ({ value }: { value: UserSearchProps }) => {
-      const { selectedUserId } = value;
-      const selectedUser = searchedUsersRef.current.find((u) => u.id === selectedUserId);
-
-      if (selectedUser) {
-        addUserChoice(selectedUser);
-      }
-    }
-  });
+  const handleSubmit = (): void => {
+    submitUsers(persistentUsers);
+    setPersistentUsers([]);
+  };
 
   return (
-    <div>
-      <form
-        onSubmit={(ev) => {
-          ev.preventDefault();
-          ev.stopPropagation();
+    <div className="flex flex-col items-center m-4">
+      <input
+        name="query"
+        type="text"
+        placeholder="Search by username or email"
+        value={query}
+        onChange={handleChange}
+        className="w-3/4 rounded-sm border-t-1 border-b-2 border-l-1 border-r-2 border-gray-600 mb-2 p-1"
+      />
+      {
+        query &&
+        <UserDropdownList
+          users={userOptions}
+          getUserId={(u: UserView) => u.id}
+          getUserLabel={(u: UserView) => `${u.username} (${u.email})`}
+          onSelectUser={handleSelectUser}
+        />
+      }
+
+      <SelectionPanel
+        options={persistentUsers}
+        getUserId={(u: UserView) => u.id}
+        getUserLabel={(u: UserView) => `${u.username} (${u.email})`}
+        onRemoveOption={(target: UserView) => {
+          setPersistentUsers((users) => users.filter((u) => u.id !== target.id));
         }}
-      >
-        <searchForm.Field
-          name="query"
-          validators={{
-            onChangeAsyncDebounceMs: 200,
-            onChangeAsync: async ({ value: query }) => {
-              const candidateUsers = await queryUsers(query);
+      />
 
-              console.log('Candidate users:', candidateUsers);
-              setSearchedUsers(() => candidateUsers);
-              return undefined;
-            }
-          }}
-          children={(field) => (
-            <>
-              <label htmlFor={field.name}>Search by username or email:</label>
-              <input
-                id={field.name}
-                name={field.name}
-                type="text"
-                value={field.state.value}
-                onBlur={field.handleBlur}
-                onChange={(e) => field.handleChange(e.target.value)}
-              />
-            </>
-          )}
-        />
-        <searchForm.Field
-          name="selectedUserId"
-          validators={{
-            onChange: ({ value: selectedUserId }) => (
-              selectedUserId < 0 ? 'Must select a user' : undefined
-            )
-          }}
-          children={
-            (field) => {
-              const handleChange = (ev: React.ChangeEvent<HTMLSelectElement>) => {
-                const userId = parseInt(ev.target.value);
-
-                field.handleChange(userId);
-                searchForm.handleSubmit();
-              };
-              return (
-                <>
-                  <label htmlFor={field.name}>Select User:</label>
-                  <select
-                    id={field.name}
-                    name={field.name}
-                    onChange={handleChange}
-                    onBlur={field.handleBlur}
-                    required
-                  >
-                    {searchedUsersRef.current.map((userView: UserView) => (
-                      <option
-                        value={userView.id}
-                      >
-                        {userView.username} ({userView.email})
-                      </option>
-                    ))}
-                  </select>
-                </>
-              );
-            }
-          }
-        />
-      </form>
-
-      {/** List of currently selected users **/}
-      <div>
-        {userChoices.map((choiceProps) => <UserChoice key={choiceProps.email} {...choiceProps} />)}
-      </div>
-
-      {/** Submit button **/}
-      <button
-        disabled={userChoices.length < 1}
-        onClick={() => onSubmit({ userIds: userChoices.map(choice => choice.id) })}
+      <Button
+        onClick={handleSubmit}
+        className="bg-blue-400 w-full mt-4"
       >
         Share Table
-      </button>
+      </Button>
     </div>
   );
 };
