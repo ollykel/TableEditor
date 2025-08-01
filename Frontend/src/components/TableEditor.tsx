@@ -10,25 +10,27 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useWebSocket } from '@/context/WebSocketContext';
 import { TableCell as CellComponent } from './TableCell';
 
-type TableCellData = { text: string; owner_id?: number };
+import type {
+   DiffInsert,
+   DiffReplace,
+   DiffDelete,
+   DiffNone,
+   StrDiff,
+   MessageInit,
+   MessageInsert,
+   MessageDelete,
+   MessageReplace,
+   MessageAcquireLock,
+   MessageReleaseLock,
+   ClientMutateMessage,
+   MutateMessage,
+   Message
+} from '@/types/WebSocketProtocol';
 
-// Define the types for incoming and outgoing messages
-interface DiffInsert { type: "insert"; index: number; text: string };
-interface DiffReplace { type: "replace"; start: number; end: number; text: string };
-interface DiffDelete { type: "delete"; start: number; end: number };
-interface DiffNone { type: "none" };
-type StrDiff = DiffInsert | DiffReplace | DiffDelete;
-
-interface MessageInit { type: "init"; client_id: number; table: TableCellData[][] };
-interface MessageInsert extends DiffInsert { client_id: number; cell: [number, number] };
-interface MessageDelete extends DiffDelete { client_id: number; cell: [number, number] };
-interface MessageReplace extends DiffReplace { client_id: number; cell: [number, number] };
-interface MessageAcquireLock { type: "acquire_lock"; client_id: number; cell: [number, number] };
-interface MessageReleaseLock { type: "release_lock"; cell: [number, number] };
-
-type ClientMutateMessage = MessageInsert | MessageDelete | MessageReplace | MessageAcquireLock;
-type MutateMessage = ClientMutateMessage | MessageReleaseLock;
-type Message = MessageInit | MutateMessage;
+type TableCellData = {
+  text: string;
+  owner_id?: number
+};
 
 const diffStrings = (olds: string, news: string): DiffInsert | DiffReplace | DiffDelete | DiffNone => {
   if (olds === news) return { type: "none" };
