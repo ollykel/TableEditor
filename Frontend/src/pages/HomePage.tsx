@@ -77,7 +77,8 @@ interface TableViewProps extends TableProps {
 }
 
 const Table = (props: TableViewProps): React.JSX.Element => {
-  const { id, name, width, height, owner, isShareable } = props;
+  const { id, name, width, height, isShareable } = props;
+  const queryClient = useQueryClient();
   const { fetchAuthenticated } = useAuthorizedFetch();
   const { Modal: ShareTableModal, openModal, closeModal } = useModal();
 
@@ -108,6 +109,7 @@ const Table = (props: TableViewProps): React.JSX.Element => {
           alert('Failed to share table');
         } else {
           alert('Table shared successfully!');
+          queryClient.invalidateQueries(['shared_tables']);
           closeModal();
         }
       });

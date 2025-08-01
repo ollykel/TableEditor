@@ -119,7 +119,6 @@ const ShareTableForm = (props: ShareTableFormProps) => {
 
   const handleSubmit = (): void => {
     submitUsers(persistentUsers);
-    setPersistentUsers([]);
   };
 
   return (

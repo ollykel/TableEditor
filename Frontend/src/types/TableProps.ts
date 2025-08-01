@@ -4,7 +4,7 @@
 //
 // =============================================================================
 
-import type UserView from '@/types/UserView';
+import type { UserView } from '@/types/User';
 
 export default interface TableProps {
   id: number;
