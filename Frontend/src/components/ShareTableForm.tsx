@@ -5,6 +5,7 @@ import { X } from 'lucide-react';
 import Button from '@/components/Button';
 
 import type { UserView } from '@/types/User';
+import type TableProps from '@/types/TableProps';
 
 interface UserDropdownListProps {
   users: UserView[];
@@ -75,6 +76,7 @@ const SelectionPanel = (props: SelectionPanelProps): React.JSX.Element => {
 };
 
 export interface ShareTableFormProps {
+  tableProps: TableProps;
   fetchUsers: (query: string) => Promise<UserView[]>;
   submitUsers: (users: UserView[]) => void;
   getUserId: (user: UserView) => string | number;
@@ -82,12 +84,14 @@ export interface ShareTableFormProps {
 }
 
 const ShareTableForm = (props: ShareTableFormProps) => {
-  const { fetchUsers, submitUsers, getUserId, getUserLabel } = props;
+  const { tableProps, fetchUsers, submitUsers, getUserId, getUserLabel } = props;
   const [query, setQuery] = useState<string>('');
   const queryRef = useRef<string>(query);
   const [userOptions, setUserOptions] = useState<UserView[]>([]);
-  const [persistentUsers, setPersistentUsers] = useState<UserView[]>([]);
-  const persistentUsersRef = useRef<Set<string | number>>(new Set());
+  const [persistentUsers, setPersistentUsers] = useState<UserView[]>(tableProps.sharedUsers);
+  const persistentUsersRef = useRef<Set<string | number>>(new Set(
+    tableProps.sharedUsers.map((u) => getUserId(u))
+  ));
 
   useEffect(() => {
     queryRef.current = query;
@@ -101,9 +105,11 @@ const ShareTableForm = (props: ShareTableFormProps) => {
     ev.preventDefault();
     setQuery(ev.target.value);
     fetchUsers(ev.target.value)
-      .then((users) => setUserOptions(users.filter(
-        (u) => ! persistentUsersRef.current.has(getUserId(u)))
-      ));
+      .then((users) => setUserOptions(users.filter((user) => {
+        const uid = getUserId(user);
+
+        return (uid !== tableProps.owner.id) && (! persistentUsersRef.current.has(uid));
+      })));
   };
 
   const handleSelectUser = (user: UserView) => {

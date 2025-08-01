@@ -76,7 +76,8 @@ interface TableViewProps extends TableProps {
   isShareable: boolean;
 }
 
-const Table = ({ id, name, width, height, isShareable }: TableViewProps): React.JSX.Element => {
+const Table = (props: TableViewProps): React.JSX.Element => {
+  const { id, name, width, height, owner, isShareable } = props;
   const { fetchAuthenticated } = useAuthorizedFetch();
   const { Modal: ShareTableModal, openModal, closeModal } = useModal();
 
@@ -138,6 +139,7 @@ const Table = ({ id, name, width, height, isShareable }: TableViewProps): React.
               </div>
               <h2 className="text-xl font-semibold text-center">Share Table "{name}"</h2>
               <ShareTableForm
+                tableProps={props}
                 fetchUsers={fetchUsersByUsernameOrEmail}
                 submitUsers={handleSubmit}
                 getUserId={(user: UserView) => user.id}
