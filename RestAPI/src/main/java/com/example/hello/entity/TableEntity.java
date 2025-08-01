@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Entity
 @Table(name = "tables")
@@ -44,23 +45,30 @@ public class TableEntity {
     public static class PublicView {
         private Long id;
         private String name;
-        private Long ownerId;
+        private UserEntity.PublicView owner;
         private int width;
         private int height;
+        private List<UserEntity.PublicView> sharedUsers;
 
         public PublicView(TableEntity table) {
           this.id = table.getId();
           this.name = table.getName();
-          this.ownerId = table.getOwner().getId();
+          this.owner = table.getOwner().toPublicView();
           this.width = table.getWidth();
           this.height = table.getHeight();
+          this.sharedUsers = table.getSharedUsers().stream()
+            .map(user -> user.toPublicView())
+            .collect(Collectors.toList());
         }
 
         public Long getId() { return this.id; }
         public String getName() { return this.name; }
-        public Long getOwnerId() { return this.ownerId; }
+        public UserEntity.PublicView getOwner() { return this.owner; }
         public int getWidth() { return this.width; }
         public int getHeight() { return this.height; }
+        public List<UserEntity.PublicView> getSharedUsers() {
+          return this.sharedUsers;
+        }
     }
 
     public TableEntity() {}
