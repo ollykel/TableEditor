@@ -140,6 +140,8 @@ const Table = ({ id, name, width, height, isShareable }: TableViewProps): React.
               <ShareTableForm
                 fetchUsers={fetchUsersByUsernameOrEmail}
                 submitUsers={handleSubmit}
+                getUserId={(user: UserView) => user.id}
+                getUserLabel={(user: UserView) => `${user.username} (${user.email})`}
               />
             </ShareTableModal>
           </div>

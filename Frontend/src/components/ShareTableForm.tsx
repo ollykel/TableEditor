@@ -77,23 +77,33 @@ const SelectionPanel = (props: SelectionPanelProps): React.JSX.Element => {
 export interface ShareTableFormProps {
   fetchUsers: (query: string) => Promise<UserView[]>;
   submitUsers: (users: UserView[]) => void;
+  getUserId: (user: UserView) => string | number;
+  getUserLabel: (user: UserView) => string;
 }
 
 const ShareTableForm = (props: ShareTableFormProps) => {
-  const { fetchUsers, submitUsers } = props;
+  const { fetchUsers, submitUsers, getUserId, getUserLabel } = props;
   const [query, setQuery] = useState<string>('');
   const queryRef = useRef<string>(query);
   const [userOptions, setUserOptions] = useState<UserView[]>([]);
   const [persistentUsers, setPersistentUsers] = useState<UserView[]>([]);
+  const persistentUsersRef = useRef<Set<string | number>>(new Set());
 
   useEffect(() => {
     queryRef.current = query;
   }, [query]);
 
+  useEffect(() => {
+    persistentUsersRef.current = new Set(persistentUsers.map(u => getUserId(u)));
+  }, [persistentUsers]);
+
   const handleChange = (ev: React.ChangeEvent<HTMLInputElement>) => {
     ev.preventDefault();
     setQuery(ev.target.value);
-    fetchUsers(ev.target.value).then((users) => setUserOptions(users));
+    fetchUsers(ev.target.value)
+      .then((users) => setUserOptions(users.filter(
+        (u) => ! persistentUsersRef.current.has(getUserId(u)))
+      ));
   };
 
   const handleSelectUser = (user: UserView) => {
@@ -120,16 +130,16 @@ const ShareTableForm = (props: ShareTableFormProps) => {
         query &&
         <UserDropdownList
           users={userOptions}
-          getUserId={(u: UserView) => u.id}
-          getUserLabel={(u: UserView) => `${u.username} (${u.email})`}
+          getUserId={getUserId}
+          getUserLabel={getUserLabel}
           onSelectUser={handleSelectUser}
         />
       }
 
       <SelectionPanel
         options={persistentUsers}
-        getUserId={(u: UserView) => u.id}
-        getUserLabel={(u: UserView) => `${u.username} (${u.email})`}
+        getUserId={getUserId}
+        getUserLabel={getUserLabel}
         onRemoveOption={(target: UserView) => {
           setPersistentUsers((users) => users.filter((u) => u.id !== target.id));
         }}
