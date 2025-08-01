@@ -1,12 +1,5 @@
-import type { PropsWithChildren } from 'react';
 
-export interface ButtonProps {
-  onClick?: () => any;
-  disabled?: boolean;
-  className?: string;
-}
-
-const Button = (props: PropsWithChildren<ButtonProps>) => {
+const Button = (props: React.DetailedHTMLProps<React.ButtonHTMLAttributes<HTMLButtonElement>, HTMLButtonElement>) => {
   const {
     className,
     children
