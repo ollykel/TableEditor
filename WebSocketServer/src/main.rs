@@ -489,7 +489,7 @@ async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_
                                             // Update table dimensions
                                             let db_cli = db_cli_ref.lock().await;
 
-                                            match db_cli.execute("UPDATE tables SET height = height + $1 WHERE table_id = $2", &[&(num_rows as i32), &table_id]).await {
+                                            match db_cli.execute("UPDATE tables SET height = height + $1 WHERE id = $2", &[&(num_rows as i32), &table_id]).await {
                                                 Ok(n_rows) => {
                                                    println!("{} rows updated by update", n_rows);
                                                 },
