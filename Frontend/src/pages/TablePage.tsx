@@ -68,7 +68,9 @@ const TablePage = () => {
 
     return (
       <AuthedPage title={name}>
-        <h1>Table: {name}</h1>
+        <h1 className="text-4xl font-serif font-bold text-center mb-4">
+          Table: {name}
+        </h1>
         <WebSocketProvider>
           <TableEditor tableId={tableId} />
         </WebSocketProvider>
