@@ -110,7 +110,9 @@ const Table = (props: TableViewProps): React.JSX.Element => {
           alert('Failed to share table');
         } else {
           alert('Table shared successfully!');
-          queryClient.invalidateQueries(['shared_tables']);
+          queryClient.invalidateQueries({
+            queryKey: ['shared_tables']
+          });
           closeModal();
         }
       });

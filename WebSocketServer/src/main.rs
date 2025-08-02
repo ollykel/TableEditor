@@ -72,13 +72,14 @@ enum ClientMessage {
     Insert { client_id: u64, cell: (usize, usize), index: usize, text: String },
     Delete { client_id: u64, cell: (usize, usize), start: usize, end: usize },
     Replace { client_id: u64, cell: (usize, usize), start: usize, end: usize, text: String },
+    InsertRows { client_id: u64, insertion_index: usize, num_rows: usize },
     AcquireLock { client_id: u64, cell: (usize, usize) },
     ReleaseLock { cell: (usize, usize) },
 }
 
-type SharedTableCells = Vec<Vec<Mutex<TableCell>>>;
+type SharedTableCells = Vec<Vec<Arc<Mutex<TableCell>>>>;
 struct SharedTable {
-    cells: Vec<Vec<Mutex<TableCell>>>,
+    cells: Mutex<SharedTableCells>,
     client_count: AtomicU32,
     sender: broadcast::Sender<ClientMessage>
 }
@@ -141,10 +142,10 @@ async fn fetch_table(db_cli: &postgres::Client, table_id: TableId) -> Result<Sha
 
     let table: SharedTableCells = (0..height)
         .map(|i_row| {
-            (0..width).map(|i_col| Mutex::new(TableCell {
+            (0..width).map(|i_col| Arc::new(Mutex::new(TableCell {
                 text: table_data[i_row][i_col].clone(),
                 lock: None
-            })).collect()
+            }))).collect()
         }).collect();
 
     Ok(table)
@@ -266,7 +267,7 @@ async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_
                 //          ii. TODO: Spawn lock manager thread
                 //          iii. Create broadcast channel
                 let shared_table_new = Arc::new(SharedTable{
-                    cells: table_cells,
+                    cells: Mutex::new(table_cells),
                     client_count: AtomicU32::new(0u32),
                     sender: tx.clone()
                 });
@@ -275,45 +276,52 @@ async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_
                 {
                     let db_cli_clone = Arc::clone(&db_cli_ref);
                     let shared_table_clone = Arc::clone(&shared_table_new);
-                    let table_height = shared_table_clone.cells.len();
-                    let table_width = shared_table_clone.cells.first().unwrap().len();
                     let tx_clone = tx.clone();
 
                     thread::spawn(move || {
                         block_on(async move {
                             loop {
-                                for row in 0..table_height {
-                                    for col in 0..table_width {
-                                        let mut cell = shared_table_clone.cells[row][col].lock().await;
-                                        let mut to_reset = false;
-                                        if let Some(ref mut lock) = cell.lock {
-                                            if lock.duration_secs < 2 {
-                                                to_reset = true;
-                                            } else {
-                                                lock.duration_secs -= 1;
-                                            }
-                                        }
-                                        if to_reset {
-                                            eprintln!("Resetting lock ({}, {})", row, col);
-                                            // write back to database
-                                            let db_cli = db_cli_clone.lock().await;
+                                {
+                                    let shared_table_cells = shared_table_clone.cells.lock().await;
+                                    let table_height = shared_table_cells.len();
+                                    let table_width = shared_table_cells.first().unwrap().len();
 
-                                           match db_cli.execute(
-                                                "UPDATE table_cells SET text = $1 WHERE table_id = $2 AND row_num = $3 AND column_num = $4",
-                                                &[&cell.text, &table_id, &(row as i32), &(col as i32)]
-                                            ).await {
-                                               Ok(n_rows) => {
-                                                   println!("{} rows updated by update", n_rows);
-                                               },
-                                               Err(e) => {
-                                                   println!("Could not update table cell: {}", e);
-                                               }
-                                           };
-                                            cell.lock = None;
-                                            let _ = tx_clone.send(ClientMessage::ReleaseLock { cell: (row, col) });
+                                    for row in 0..table_height {
+                                        for col in 0..table_width {
+                                            let mut cell = shared_table_cells[row][col].lock().await;
+                                            let mut to_reset = false;
+
+                                            if let Some(ref mut lock) = cell.lock {
+                                                if lock.duration_secs < 2 {
+                                                    to_reset = true;
+                                                } else {
+                                                    lock.duration_secs -= 1;
+                                                }
+                                            }
+
+                                            if to_reset {
+                                                eprintln!("Resetting lock ({}, {})", row, col);
+                                                // write back to database
+                                                let db_cli = db_cli_clone.lock().await;
+
+                                               match db_cli.execute(
+                                                    "UPDATE table_cells SET text = $1 WHERE table_id = $2 AND row_num = $3 AND column_num = $4",
+                                                    &[&cell.text, &table_id, &(row as i32), &(col as i32)]
+                                                ).await {
+                                                   Ok(n_rows) => {
+                                                       println!("{} rows updated by update", n_rows);
+                                                   },
+                                                   Err(e) => {
+                                                       println!("Could not update table cell: {}", e);
+                                                   }
+                                               };
+                                                cell.lock = None;
+                                                let _ = tx_clone.send(ClientMessage::ReleaseLock { cell: (row, col) });
+                                            }
                                         }
                                     }
                                 }
+
                                 thread::sleep(Duration::from_secs(1));
                             }
                         });
@@ -353,7 +361,9 @@ async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_
 
             let init_table = {
                 let mut snapshot = vec![];
-                for row in table.cells.iter() {
+                let table_cells = table.cells.lock().await;
+
+                for row in table_cells.iter() {
                     let mut snap_row = vec![];
                     for cell in row {
                         let c = cell.lock().await;
@@ -394,7 +404,13 @@ async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_
                             if let Ok(mut client_msg) = serde_json::from_str::<ClientMessage>(text_str) {
                                 match client_msg {
                                     ClientMessage::Insert { ref mut client_id, cell: (r, c), index, ref text, .. } => {
-                                        let mut cell = table.cells[r][c].lock().await;
+                                        let cell_ref = {
+                                            let table_cells = table.cells.lock().await;
+
+                                            Arc::clone(&table_cells[r][c])
+                                        };
+                                        let mut cell = cell_ref.lock().await;
+
                                         *client_id = current_client_id;
                                         if cell.lock.map_or(true, |l| l.owner_id == current_client_id) {
                                             if index >= cell.text.len() {
@@ -408,7 +424,13 @@ async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_
                                         }
                                     }
                                     ClientMessage::Delete { ref mut client_id, cell: (r, c), start, end, .. } => {
-                                        let mut cell = table.cells[r][c].lock().await;
+                                        let cell_ref = {
+                                            let table_cells = table.cells.lock().await;
+
+                                            Arc::clone(&table_cells[r][c])
+                                        };
+                                        let mut cell = cell_ref.lock().await;
+
                                         *client_id = current_client_id;
                                         if cell.lock.map_or(true, |l| l.owner_id == current_client_id) {
                                             if start <= end && end <= cell.text.len() {
@@ -420,7 +442,12 @@ async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_
                                         }
                                     }
                                     ClientMessage::Replace { ref mut client_id, cell: (r, c), start, end, ref text, .. } => {
-                                        let mut cell = table.cells[r][c].lock().await;
+                                        let cell_ref = {
+                                            let table_cells = table.cells.lock().await;
+
+                                            Arc::clone(&table_cells[r][c])
+                                        };
+                                        let mut cell = cell_ref.lock().await;
                                         *client_id = current_client_id;
                                         if cell.lock.map_or(true, |l| l.owner_id == current_client_id) {
                                             if start <= end && end <= cell.text.len() {
@@ -430,7 +457,82 @@ async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_
                                                 table.sender.send(ClientMessage::AcquireLock { client_id: current_client_id, cell: (r, c) }).ok();
                                             }
                                         }
-                                    }
+                                    },
+                                    ClientMessage::InsertRows { client_id: _, insertion_index, num_rows } => {
+                                        // Update table in-memory
+                                        // TODO: store table dimensions independently in struct
+                                        let mut table_cells = table.cells.lock().await;
+
+                                        if insertion_index > table_cells.len() {
+                                            // invalid insertion index
+                                            // TODO: return insertion index
+                                            continue;
+                                        }
+
+                                        let n_rows_orig = table_cells.len();
+                                        let n_cols = table_cells.first().unwrap().len();
+
+                                        for _ in 0..num_rows {
+                                            let mut new_row = Vec::<Arc<Mutex<TableCell>>>::new();
+
+                                            for _ in 0..n_cols {
+                                                new_row.push(Arc::new(Mutex::new(TableCell{
+                                                    text: String::new(),
+                                                    lock: None
+                                                })));
+                                            }// end for _ in 0..n_cols
+                                            table_cells.insert(insertion_index, new_row);
+                                        }// end for _ in 0..num_rows
+
+                                        // TODO: Make a database transaction
+                                        {
+                                            // Update table dimensions
+                                            let db_cli = db_cli_ref.lock().await;
+
+                                            match db_cli.execute("UPDATE tables SET height = height + $1 WHERE table_id = $2", &[&(num_rows as i32), &table_id]).await {
+                                                Ok(n_rows) => {
+                                                   println!("{} rows updated by update", n_rows);
+                                                },
+                                                Err(e) => {
+                                                    println!("Could not update table: {}", e);
+                                                }
+                                            };
+
+                                            // increment row number of all existing cells at or
+                                            // above insertion row
+                                            for i_row in (insertion_index..n_rows_orig).rev() {
+                                                match db_cli.execute("UPDATE table_cells SET row_num = row_num + $1 WHERE table_id = $2 AND row_num = $3", &[&(num_rows as i32), &table_id, &(i_row as i32)]).await {
+                                                    Ok(n_rows) => {
+                                                       println!("{} rows updated by update", n_rows);
+                                                    },
+                                                    Err(e) => {
+                                                        println!("Could not update table: {}", e);
+                                                    }
+                                                };
+                                            }
+
+                                            // insert new table cells
+                                            let new_text = String::new();
+                                            for idx in 0..num_rows {
+                                                let i_row = insertion_index + idx;
+
+                                                for i_col in 0..n_cols {
+                                                    match db_cli.execute("INSERT INTO table_cells (table_id, row_num, column_num, text) VALUES ($1, $2, $3, $4)", &[&table_id, &(i_row as i32), &(i_col as i32), &new_text]).await {
+                                                        Ok(n_rows) => {
+                                                           println!("{} rows updated by insertion", n_rows);
+                                                        },
+                                                        Err(e) => {
+                                                            println!("Could not update table cells: {}", e);
+                                                        }
+                                                    };
+                                                }// end for i_col in 0..n_cols
+                                            }// end for idx in 0..n_rows
+                                        }
+
+                                        // Update clients
+                                        table.sender.send(client_msg).ok();
+                                    },
+                                    // Do nothing for all other messages
                                     _ => {}
                                 }
                             }

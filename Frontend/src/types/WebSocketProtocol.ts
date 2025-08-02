@@ -1,6 +1,11 @@
 
 
 // Define the types for incoming and outgoing messages
+export interface TableCellData {
+  text: string;
+  owner_id?: number;
+};
+
 export interface DiffInsert {
   type: "insert";
   index: number;
@@ -47,6 +52,13 @@ export interface MessageReplace extends DiffReplace {
   cell: [number, number];
 };
 
+export interface MessageInsertRows {
+  type: "insert_rows";
+  client_id: number;
+  insertion_index: number;
+  num_rows: number;
+}
+
 export interface MessageAcquireLock {
   type: "acquire_lock";
   client_id: number;
@@ -60,4 +72,4 @@ export interface MessageReleaseLock {
 
 export type ClientMutateMessage = MessageInsert | MessageDelete | MessageReplace | MessageAcquireLock;
 export type MutateMessage = ClientMutateMessage | MessageReleaseLock;
-export type Message = MessageInit | MutateMessage;
+export type Message = MessageInit | MutateMessage | MessageInsertRows;

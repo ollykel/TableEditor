@@ -7,30 +7,22 @@
 
 // TableEditor.tsx
 import React, { useState, useEffect, useRef } from 'react';
+
+import { Plus } from 'lucide-react';
+
 import { useWebSocket } from '@/context/WebSocketContext';
 import { TableCell as CellComponent } from './TableCell';
 
 import type {
-   DiffInsert,
-   DiffReplace,
-   DiffDelete,
-   DiffNone,
-   StrDiff,
-   MessageInit,
-   MessageInsert,
-   MessageDelete,
-   MessageReplace,
-   MessageAcquireLock,
-   MessageReleaseLock,
-   ClientMutateMessage,
-   MutateMessage,
-   Message
+  TableCellData,
+  DiffInsert,
+  DiffReplace,
+  DiffDelete,
+  DiffNone,
+  StrDiff,
+  MutateMessage,
+  Message
 } from '@/types/WebSocketProtocol';
-
-type TableCellData = {
-  text: string;
-  owner_id?: number
-};
 
 const diffStrings = (olds: string, news: string): DiffInsert | DiffReplace | DiffDelete | DiffNone => {
   if (olds === news) return { type: "none" };
@@ -162,6 +154,22 @@ export const TableEditor: React.FC<TableEditorProps> = (props: TableEditorProps)
           setClientId(() => msg.client_id);
           setTable(() => msg.table);
         }
+      } else if (msg.type === 'insert_rows') {
+        // TODO: row insertion logic here
+        const { insertion_index: insertionIndex, num_rows: numRows} =  msg;
+
+        // Insert rows with blank text
+        setTable((oldTable) => {
+          const nCols = oldTable[0].length;
+
+          return [
+            ...oldTable.slice(0, insertionIndex),
+            ...Array(numRows).fill(
+              Array(nCols).fill({ text: '', owner_id: -1 })
+            ),
+            ...oldTable.slice(insertionIndex),
+          ];
+        });
       } else if (msg.type === 'release_lock' || msg.client_id !== clientId) {
         mutateCell(msg);
       }
@@ -200,11 +208,33 @@ export const TableEditor: React.FC<TableEditorProps> = (props: TableEditorProps)
 
   const nCols = table.length > 0 ? table[0].length : 0;
 
+  const makeInsertRow = (iRow: number) => () => {
+    if (socket) {
+      console.log(`Inserting row at ${iRow}`);
+      socket.send(JSON.stringify({
+        type: "insert_rows",
+        client_id: 0,
+        insertion_index: iRow,
+        num_rows: 1
+      }));
+    }
+  };
+
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${nCols}, auto)`, gap: '10px' }}>
-        {table.map((row, i) =>
-          row.map((cell, j) => makeCell(cell, i, j))
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${nCols + 1}, auto)`, gap: '10px' }}>
+        {table.map((row, iRow) =>
+          [
+            <div key={`${iRow}-label`} className="items-baseline">
+              <button
+                onClick={makeInsertRow(iRow)}
+                className="hover:cursor-pointer hover:bg-blue-200"
+              >
+                <Plus />
+              </button>
+            </div>
+            , ...row.map((cell, iCol) => makeCell(cell, iRow, iCol))
+          ]
         )}
       </div>
     </div>
