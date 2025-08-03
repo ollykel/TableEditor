@@ -7,7 +7,7 @@
 const Title = (): React.JSX.Element => {
   return (
     <div>
-      <h1>Table Editor</h1>
+      <h1 className="text-center text-4xl font-bold font-serif">Table Editor</h1>
     </div>
   );
 };
