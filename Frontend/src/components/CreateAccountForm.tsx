@@ -1,6 +1,9 @@
 // import React, { useState } from 'react';
 import { useForm, useStore } from '@tanstack/react-form'
 
+import { FormFieldWrapper } from '@/components/Form';
+import Button from '@/components/Button';
+
 export interface CreateAccountFormData {
   username: string;
   email: string;
@@ -46,13 +49,14 @@ const CreateAccountForm = (props: CreateAccountFormProps): React.JSX.Element => 
   const formErrorMap = useStore(form.store, (state) => state.errorMap);
 
   return (
-    <div>
+    <div className="items-center">
       <form
         onSubmit={(e) => {
           e.preventDefault();
           e.stopPropagation();
           form.handleSubmit();
         }}
+        className="flex flex-col"
       >
         <div>
           {/** Field: username **/}
@@ -60,32 +64,20 @@ const CreateAccountForm = (props: CreateAccountFormProps): React.JSX.Element => 
             name="username"
             validators={{
               onChange: ({ value }) => {
-                return !value ? 
-                  'Username required'
+                return !value
+                  ? 'Username required'
                   : value.length < 3
-                    ? 'Username must be at least three characters long'
-                    : undefined;
+                  ? 'Username must be at least three characters long'
+                  : undefined;
               },
-              onChangeAsyncDebounceMs: 500
+              onChangeAsyncDebounceMs: 500,
             }}
-            children={(field) => {
-              return (
-                <>
-                  <label htmlFor={field.name}>Username</label>
-                  <input
-                    id={field.name}
-                    name={field.name}
-                    type="username"
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                  />
-                  {!field.state.meta.isValid && (
-                    <em role="alert">{field.state.meta.errors.join(', ')}</em>
-                  )}
-                </>
-              );
-            }}
+            children={(field) => <FormFieldWrapper
+                field={field}
+                label="Username"
+                type="text"
+              />
+            }
           />
         </div>
 
@@ -95,32 +87,20 @@ const CreateAccountForm = (props: CreateAccountFormProps): React.JSX.Element => 
             name="email"
             validators={{
               onChange: ({ value }) => {
-                return !value ? 
-                  'Email required'
+                return !value
+                  ? 'Email required'
                   : value.length < 3
-                    ? 'Email must be at least three characters long'
-                    : undefined;
+                  ? 'Email must be at least three characters long'
+                  : undefined;
               },
-              onChangeAsyncDebounceMs: 500
+              onChangeAsyncDebounceMs: 500,
             }}
-            children={(field) => {
-              return (
-                <>
-                  <label htmlFor={field.name}>Email</label>
-                  <input
-                    id={field.name}
-                    name={field.name}
-                    type="email"
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                  />
-                  {!field.state.meta.isValid && (
-                    <em role="alert">{field.state.meta.errors.join(', ')}</em>
-                  )}
-                </>
-              );
-            }}
+            children={(field) => <FormFieldWrapper
+                field={field}
+                label="Email"
+                type="email"
+              />
+            }
           />
         </div>
 
@@ -130,32 +110,20 @@ const CreateAccountForm = (props: CreateAccountFormProps): React.JSX.Element => 
             name="password"
             validators={{
               onChange: ({ value }) => {
-                return !value ? 
-                  'Password required'
+                return !value
+                  ? 'Password required'
                   : value.length < 8
-                    ? 'Password must be at least eight characters long'
-                    : undefined;
+                  ? 'Password must be at least eight characters long'
+                  : undefined;
               },
-              onChangeAsyncDebounceMs: 500
+              onChangeAsyncDebounceMs: 500,
             }}
-            children={(field) => {
-              return (
-                <>
-                  <label htmlFor={field.name}>Password</label>
-                  <input
-                    id={field.name}
-                    name={field.name}
-                    type="password"
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                  />
-                  {!field.state.meta.isValid && (
-                    <em role="alert">{field.state.meta.errors.join(', ')}</em>
-                  )}
-                </>
-              );
-            }}
+            children={(field) => <FormFieldWrapper
+                field={field}
+                label="Password"
+                type="password"
+              />
+            }
           />
         </div>
 
@@ -165,30 +133,16 @@ const CreateAccountForm = (props: CreateAccountFormProps): React.JSX.Element => 
             name="passwordConfirm"
             validators={{
               onChange: ({ value }) => {
-                return !value ? 
-                  'Password confirmation required'
-                  : undefined;
+                return !value ? 'Password confirmation required' : undefined;
               },
-              onChangeAsyncDebounceMs: 500
+              onChangeAsyncDebounceMs: 500,
             }}
-            children={(field) => {
-              return (
-                <>
-                  <label htmlFor={field.name}>Confirm Password</label>
-                  <input
-                    id={field.name}
-                    name={field.name}
-                    type="password"
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                  />
-                  {!field.state.meta.isValid && (
-                    <em role="alert">{field.state.meta.errors.join(', ')}</em>
-                  )}
-                </>
-              );
-            }}
+            children={(field) => <FormFieldWrapper
+                field={field}
+                label="Confirm Password"
+                type="password"
+              />
+            }
           />
         </div>
 
@@ -197,9 +151,15 @@ const CreateAccountForm = (props: CreateAccountFormProps): React.JSX.Element => 
         <form.Subscribe
           selector={(state) => [state.canSubmit, state.isSubmitting]}
           children={([canSubmit, isSubmitting]) => (
-            <button type="submit" disabled={!canSubmit}>
-              {isSubmitting ? '...' : 'Create Account'}
-            </button>
+            <div className="flex w-full justify-center">
+              <Button
+                type="submit"
+                disabled={!canSubmit}
+                className="bg-blue-600 hover:bg-blue-400 w-1/2"
+              >
+                {isSubmitting ? '...' : 'Create Account'}
+              </Button>
+            </div>
           )}
         />
       </form>
