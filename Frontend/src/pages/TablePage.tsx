@@ -64,7 +64,7 @@ const TablePage = () => {
         <h1>Loading ...</h1>
       </div>
   } else {
-    const { id: tableId, name } = tableProps;
+    const { name } = tableProps;
 
     return (
       <AuthedPage title={name}>
@@ -72,7 +72,7 @@ const TablePage = () => {
           Table: {name}
         </h1>
         <WebSocketProvider>
-          <TableEditor tableId={tableId} />
+          <TableEditor tableInfo={tableProps} />
         </WebSocketProvider>
       </AuthedPage>
     );

@@ -13,6 +13,8 @@ import { Plus } from 'lucide-react';
 import { useWebSocket } from '@/context/WebSocketContext';
 import { TableCell as CellComponent } from './TableCell';
 
+import type TableProps from '@/types/TableProps';
+
 import type {
   TableCellData,
   DiffInsert,
@@ -78,11 +80,12 @@ const mutateString = (olds: string, diff: StrDiff): string => {
 };// end const mutateString = (olds: string, diff: StrDiff): string
 
 interface TableEditorProps {
-  tableId: number;
+  tableInfo: TableProps;
 }
 
 export const TableEditor: React.FC<TableEditorProps> = (props: TableEditorProps) => {
-  const { tableId } = props;
+  const { tableInfo } = props;
+  const { id: tableId } = tableInfo;
   const { socket, connect, isConnected } = useWebSocket();
   const [table, setTable] = useState<TableCellData[][]>(
     Array.from({ length: 3 }, () => Array(3).fill({ text: '', owner_id: -1 }))
