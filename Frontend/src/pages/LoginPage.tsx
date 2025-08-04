@@ -6,6 +6,9 @@ import config from '@/app.config';
 import Page from '@/components/Page';
 import Title from '@/components/Title';
 import LoginForm from '@/components/LoginForm';
+import Link from '@/components/Link';
+import H2 from '@/components/H2';
+import Card from '@/components/Card';
 import { useAuth } from '@/context/AuthContext';
 
 import type { LoginFormData } from '@/components/LoginForm';
@@ -36,10 +39,17 @@ const LoginPage = (): React.JSX.Element => {
   return (
     <Page title="Login">
       <Title />
-      <h2>Login</h2>
-      <LoginForm
-        onSubmit={handleSubmit}
-      />
+      <div className="flex flex-col items-center">
+        <Card className="w-1/2 p-4">
+          <H2>Log in</H2>
+          <LoginForm
+            onSubmit={handleSubmit}
+          />
+          <p className="mt-4 text-center">
+            Or <Link to={config.routes.createAccount}>create account</Link>
+          </p>
+        </Card>
+      </div>
     </Page>
   );
 };
