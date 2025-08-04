@@ -1,6 +1,10 @@
 // import React, { useState } from 'react';
 import { useForm } from '@tanstack/react-form'
 
+import Input from '@/components/Input';
+import Label from '@/components/Label';
+import Button from '@/components/Button';
+
 export interface LoginFormData {
   email: string;
   password: string;
@@ -24,13 +28,14 @@ const LoginForm = (props: LoginFormProps): React.JSX.Element => {
   });
 
   return (
-    <div>
+    <div className="items-center">
       <form
         onSubmit={(e) => {
           e.preventDefault();
           e.stopPropagation();
           form.handleSubmit();
         }}
+        className="flex flex-col"
       >
         <div>
           {/** Field: email **/}
@@ -48,20 +53,30 @@ const LoginForm = (props: LoginFormProps): React.JSX.Element => {
             }}
             children={(field) => {
               return (
-                <>
-                  <label htmlFor={field.name}>Email</label>
-                  <input
-                    id={field.name}
-                    name={field.name}
-                    type="email"
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                  />
-                  {!field.state.meta.isValid && (
-                    <em role="alert">{field.state.meta.errors.join(', ')}</em>
-                  )}
-                </>
+                <div
+                  className="flex flex-row mb-2"
+                >
+                  <Label
+                    htmlFor={field.name}
+                    className="w-1/4 text-right"
+                  >
+                    Email
+                  </Label>
+                  <div className="w-3/4 justify-left">
+                    <Input
+                      id={field.name}
+                      name={field.name}
+                      type="email"
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      className="w-full"
+                    />
+                    {!field.state.meta.isValid && (
+                      <em role="alert">{field.state.meta.errors.join(', ')}</em>
+                    )}
+                  </div>
+                </div>
               );
             }}
           />
@@ -83,20 +98,28 @@ const LoginForm = (props: LoginFormProps): React.JSX.Element => {
             }}
             children={(field) => {
               return (
-                <>
-                  <label htmlFor={field.name}>Password</label>
-                  <input
-                    id={field.name}
-                    name={field.name}
-                    type="password"
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                  />
-                  {!field.state.meta.isValid && (
-                    <em role="alert">{field.state.meta.errors.join(', ')}</em>
-                  )}
-                </>
+                <div className="flex flex-row mb-2">
+                  <Label
+                    htmlFor={field.name}
+                    className="w-1/4 text-right"
+                  >
+                    Password
+                  </Label>
+                  <div className="w-3/4 justify-left">
+                    <Input
+                      id={field.name}
+                      name={field.name}
+                      type="password"
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      className="w-full"
+                    />
+                    {!field.state.meta.isValid && (
+                      <em role="alert">{field.state.meta.errors.join(', ')}</em>
+                    )}
+                  </div>
+                </div>
               );
             }}
           />
@@ -105,9 +128,15 @@ const LoginForm = (props: LoginFormProps): React.JSX.Element => {
         <form.Subscribe
           selector={(state) => [state.canSubmit, state.isSubmitting]}
           children={([canSubmit, isSubmitting]) => (
-            <button type="submit" disabled={!canSubmit}>
-              {isSubmitting ? '...' : 'Log in'}
-            </button>
+            <div className="flex w-full justify-center">
+              <Button
+                type="submit"
+                disabled={!canSubmit}
+                className="bg-blue-600 hover:bg-blue-400 w-1/2"
+              >
+                {isSubmitting ? '...' : 'Log in'}
+              </Button>
+            </div>
           )}
         />
       </form>
