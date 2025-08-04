@@ -1,8 +1,11 @@
 import { useNavigate } from 'react-router';
 
+import config from '@/app.config';
+
 import Page from '@/components/Page';
 import Title from '@/components/Title';
 import H2 from '@/components/H2';
+import Link from '@/components/Link';
 import Card from '@/components/Card';
 import CreateAccountForm from '@/components/CreateAccountForm';
 
@@ -37,6 +40,9 @@ const CreateAccountPage = (): React.JSX.Element => {
           <CreateAccountForm
             onSubmit={handleSubmit}
           />
+          <p className="text-center mt-2">
+            Or <Link to={config.routes.login}>log in</Link>
+          </p>
         </Card>
       </div>
     </Page>
