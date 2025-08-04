@@ -2,6 +2,8 @@ import { useNavigate } from 'react-router';
 
 import Page from '@/components/Page';
 import Title from '@/components/Title';
+import H2 from '@/components/H2';
+import Card from '@/components/Card';
 import CreateAccountForm from '@/components/CreateAccountForm';
 
 import type { CreateAccountFormData } from '@/components/CreateAccountForm';
@@ -28,10 +30,15 @@ const CreateAccountPage = (): React.JSX.Element => {
   return (
     <Page title="Create Account">
       <Title />
-      <h2>Create Account</h2>
-      <CreateAccountForm
-        onSubmit={handleSubmit}
-      />
+
+      <div className="flex justify-center">
+        <Card className="p-4 w-4/5">
+          <H2>Create Account</H2>
+          <CreateAccountForm
+            onSubmit={handleSubmit}
+          />
+        </Card>
+      </div>
     </Page>
   );
 };
