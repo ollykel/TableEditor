@@ -1,4 +1,3 @@
-import { Link } from 'react-router';
 import { useForm } from 'react-hook-form';
 import {
   useQuery,
@@ -14,6 +13,7 @@ import AuthedPage from '@/components/AuthedPage';
 import { useModal } from '@/components/Modal';
 import ShareTableForm from '@/components/ShareTableForm';
 import Card from '@/components/Card';
+import Link from '@/components/Link';
 import Button from '@/components/Button';
 
 import type TableProps from '@/types/TableProps';
