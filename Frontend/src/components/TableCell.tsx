@@ -33,14 +33,16 @@ export const TableCell: React.FC<TableCellProps> = ({ text, clientId, ownerId, h
   };
 
   return (
-    <textarea
-      className="disabled:bg-gray-200 resize-none m-5"
-      rows={3}
-      cols={30}
-      value={text}
-      onChange={handleChange}
-      disabled={!isConnected || isLocked}
-      style={{ resize: 'none', margin: '5px' }}
-    />
+    <div className="border border-gray-300 w-min">
+      <textarea
+        className="disabled:bg-gray-200 resize-none"
+        rows={3}
+        cols={30}
+        value={text}
+        onChange={handleChange}
+        disabled={!isConnected || isLocked}
+        style={{ resize: 'none', margin: '5px' }}
+      />
+    </div>
   );
 };

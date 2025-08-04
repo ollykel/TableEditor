@@ -221,8 +221,8 @@ export const TableEditor: React.FC<TableEditorProps> = (props: TableEditorProps)
   };
 
   return (
-    <div>
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${nCols + 1}, auto)`, gap: '10px' }}>
+    <div className="w-min">
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${nCols + 1}, auto)`, gap: '0px' }}>
         {table.map((row, iRow) =>
           [
             <div key={`${iRow}-label`} className="items-baseline">
