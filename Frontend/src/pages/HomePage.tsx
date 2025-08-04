@@ -119,7 +119,7 @@ const Table = (props: TableViewProps): React.JSX.Element => {
   };
 
   return (
-    <Card className="w-3/4">
+    <Card className="flex flex-col items-center w-4/5">
       <Link to={`/app/tables/${id}`}>
         <h2 className="text-lg font-semibold">{name}</h2>
       </Link>
