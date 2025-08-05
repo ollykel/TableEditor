@@ -88,6 +88,19 @@ docker-compose.yml.
 Building the necessary images can be resource intensive. You should have at
 least 10G of free space on your device before you run the Table Editor.
 
+Note that building the app will take quite some time (>10 minutes) on the first
+attempt. The build process will speed up significantly on later builds, as
+dependencies and different stages of the build process will be cached.
+
+You may need to stop and restart the table editor on your first run, to get the
+services correctly synchronized. To do so, run the following commands from the
+repository root:
+
+```
+docker compose down
+docker compose up --build -d
+```
+
 ### Using the Table Editor
 
 To use the table editor locally, just open your browser to
@@ -104,6 +117,15 @@ export TABLE_EDITOR_HTTP_PORT=<port number>
 
 To replace the default https port number of 4430, set the value of the variable
 TABLE\_EDITOR\_HTTPS\_PORT.
+
+### Stopping the Table Editor
+
+To stop the table editor, simply run the following command from the repository
+root:
+
+```
+docker compose down
+```
 
 ## Architecture Overview
 
