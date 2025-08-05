@@ -105,6 +105,23 @@ export TABLE_EDITOR_HTTP_PORT=<port number>
 To replace the default https port number of 4430, set the value of the variable
 TABLE\_EDITOR\_HTTPS\_PORT.
 
+## Architecture Overview
+
+The Table Editor is built as a modular monolith, composed of several services
+which are built and orchestrated using Docker. In summary, the services are:
+
+- Frontend: The Single-Page app through which users primarily interact with the
+  Table Editor. Built in React.
+- REST API: The API which acts as an intermediary between the frontend and the
+  database, enabling essential functionalities such as authentication and CRUD
+  operations. Built in Java with Spring Boot.
+- Web Socket Server: The service which provides users with real time interaction
+  via web socket connections. Built in Rust with tokio.
+- Reverse Proxy: A proxy which routes requests to other services through a
+  common interface. Built with nginx.
+- Database: Stores persistent data, including user account data and tables.
+  Built in PostgreSQL.
+
 ## License
 
 See [LICENSE](./LICENSE).
