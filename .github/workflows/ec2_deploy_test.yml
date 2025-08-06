@@ -1,0 +1,64 @@
+# Automatically rebuilds and restarts the EC2 instance when a push to the
+# production branch occurs.
+# Derived from https://www.baeldung.com/ops/github-actions-deploy-ec2
+on:
+  push:
+    branches:
+      - testing
+  workflow_call:
+    secrets:
+      EC2_TEST_PRIVATE_KEY:
+        description: "The key to use to ssh into the ec2 instance"
+        required: true
+      EC2_TEST_USER:
+        description: "User on the EC2 instance"
+        required: true
+      EC2_TEST_HOST:
+        description: "Hostname of the EC2 instance"
+        required: true
+      EC2_TEST_REPO_DIR:
+        description: "Location of the git repository on the EC2 instance"
+        required: true
+      EC2_TEST_ENV_FILE:
+        description: ".env file to be placed in .env"
+        required: true
+      EC2_TEST_SSL_KEY:
+        description: "Private SSL key to be placed in ReverseProxy/key.pem"
+        required: true
+      EC2_TEST_SSL_CERT:
+        description: "Certificate to be placed in ReverseProxy/cert.pem"
+        required: true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to EC2
+        env:
+          PRIVATE_KEY: ${{ secrets.EC2_TEST_PRIVATE_KEY }}
+          HOST: ${{ secrets.EC2_TEST_HOST }}
+          USER: ${{ secrets.EC2_TEST_USER }}
+          REPO_URL: ${{ secrets.EC2_TEST_REPO_URL }}
+          REPO_DIR: ${{ secrets.EC2_TEST_REPO_DIR }}
+          ENV_FILE: ${{ secrets.EC2_TEST_ENV_FILE }}
+          SSL_KEY: ${{ secrets.EC2_TEST_SSL_KEY }}
+          SSL_CERT: ${{ secrets.EC2_TEST_SSL_CERT }}
+          TARGET_BRANCH: testing
+        run: |
+          echo "${PRIVATE_KEY}" > github-ec2.pem && chmod 400 github-ec2.pem
+          ssh -o StrictHostKeyChecking=no -i github-ec2.pem "${USER}@${HOST}" "
+          if [[ ! -d \"${REPO_DIR}/.git\" ]]
+          then
+            git clone \"${REPO_URL}\" \"${REPO_DIR}\"
+          fi
+          cd \"${REPO_DIR}\"
+          git fetch
+          git checkout \"${TARGET_BRANCH}\"
+          git pull
+          echo \"${ENV_FILE}\" > .env
+          echo \"${SSL_KEY}\" > ReverseProxy/key.pem
+          echo \"${SSL_CERT}\" > ReverseProxy/cert.pem
+          docker compose down
+          docker compose up --build --detach
+          "
+          chmod 600 github-ec2.pem
+          shred -u github-ec2.pem
