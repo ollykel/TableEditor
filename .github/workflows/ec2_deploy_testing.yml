@@ -16,6 +16,9 @@ on:
       EC2_TEST_HOST:
         description: "Hostname of the EC2 instance"
         required: true
+      EC2_TEST_REPO_URL:
+        description: "URL at which the upstream repository is located"
+        required: true
       EC2_TEST_REPO_DIR:
         description: "Location of the git repository on the EC2 instance"
         required: true
