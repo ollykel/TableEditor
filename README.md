@@ -15,7 +15,7 @@ installing Docker Desktop on your computer.
 
 ### Environment Configuration
 
-To configure the table editor, you need a .env file in the repository root. A
+To configure the Table Editor, you need a .env file in the repository root. A
 file named example.env has been provided to get you started. To start, simply
 copy example.env to .env.
 
@@ -93,7 +93,7 @@ Note that building the app will take quite some time (>10 minutes) on the first
 attempt. The build process will speed up significantly on later builds, as
 dependencies and different stages of the build process will be cached.
 
-You may need to stop and restart the table editor on your first run, to get the
+You may need to stop and restart the Table Editor on your first run to get the
 services correctly synchronized. To do so, run the following commands from the
 repository root:
 
@@ -104,11 +104,10 @@ docker compose up --build -d
 
 ### Using the Table Editor
 
-To use the table editor locally, just open your browser to
-http://localhost:8080. If you want to use https, go to https://localhost:4430
-instead.
+To use the Table Editor locally, open your browser to http://localhost:8080. If
+you want to use https, go to https://localhost:4430 instead.
 
-You can replace the default http port number of 8080 by setting the environment
+You can replace the default http port number (8080) by setting the environment
 variable TABLE\_EDITOR\_HTTP\_PORT, either in your .env file or directly in your
 shell by running the following command:
 
@@ -116,13 +115,13 @@ shell by running the following command:
 export TABLE_EDITOR_HTTP_PORT=<port number>
 ```
 
-To replace the default https port number of 4430, set the value of the variable
+To replace the default https port number (4430), set the value of the variable
 TABLE\_EDITOR\_HTTPS\_PORT.
 
 ### Stopping the Table Editor
 
-To stop the table editor, simply run the following command from the repository
-root:
+To stop the Table Editor, run the following command from the repository root
+directory:
 
 ```
 docker compose down
