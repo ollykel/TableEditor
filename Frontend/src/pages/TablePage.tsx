@@ -12,6 +12,7 @@ import TableEditor from '@/components/TableEditor';
 import ShareTableForm from '@/components/ShareTableForm';
 import { useModal } from '@/components/Modal';
 import Button from '@/components/Button';
+import UserTag from '@/components/UserTag';
 import NotFoundPage from '@/pages/NotFoundPage';
 
 import type TableProps from '@/types/TableProps';
@@ -132,13 +133,11 @@ const TablePage = () => {
           {/** Display shared users**/}
           {
             sharedUsers && sharedUsers.length && (
-              <div className="flex flex-row mb-4">
+              <div className="flex flex-row my-4 align-center">
                 <span>Shared with: </span>
                 {
                   sharedUsers.map((user: UserView) => (
-                    <div className="ml-2">
-                      {user.username}
-                    </div>
+                    <UserTag user={user} />
                   ))
                 }
               </div>
