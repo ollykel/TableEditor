@@ -16,11 +16,11 @@ installing Docker Desktop on your computer.
 ### Environment Configuration
 
 To configure the table editor, you need a .env file in the repository root. A
-file named sample.env has been provided to get you started. To start, simply
-copy sample.env to .env.
+file named example.env has been provided to get you started. To start, simply
+copy example.env to .env.
 
 ```
-cp ./sample.env ./.env
+cp ./example.env ./.env
 ```
 
 Edit your .env file to set the values of the required fields, which are
