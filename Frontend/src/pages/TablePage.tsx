@@ -69,26 +69,28 @@ const TablePage = () => {
 
     return (
       <AuthedPage title={name}>
-        <h1 className="text-4xl font-serif font-bold text-center mb-4">
-          Table: {name}
-        </h1>
-        {
-          sharedUsers && sharedUsers.length && (
-            <div className="flex flex-row mb-4">
-              <span>Shared with: </span>
-              {
-                sharedUsers.map((user: UserView) => (
-                  <div className="ml-2">
-                    {user.username}
-                  </div>
-                ))
-              }
-            </div>
-          )
-        }
-        <WebSocketProvider>
-          <TableEditor tableInfo={tableProps} />
-        </WebSocketProvider>
+        <div className="px-4">
+          <h1 className="text-4xl font-serif font-bold text-center mb-4">
+            Table: {name}
+          </h1>
+          {
+            sharedUsers && sharedUsers.length && (
+              <div className="flex flex-row mb-4">
+                <span>Shared with: </span>
+                {
+                  sharedUsers.map((user: UserView) => (
+                    <div className="ml-2">
+                      {user.username}
+                    </div>
+                  ))
+                }
+              </div>
+            )
+          }
+          <WebSocketProvider>
+            <TableEditor tableInfo={tableProps} />
+          </WebSocketProvider>
+        </div>
       </AuthedPage>
     );
   }
