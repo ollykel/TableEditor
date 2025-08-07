@@ -7,6 +7,14 @@ import Button from '@/components/Button';
 import type { UserView } from '@/types/User';
 import type TableProps from '@/types/TableProps';
 
+export interface ShareTableFormProps {
+  tableProps: TableProps;
+  fetchUsers: (query: string) => Promise<UserView[]>;
+  submitUsers: (users: UserView[]) => void;
+  getUserId: (user: UserView) => string | number;
+  getUserLabel: (user: UserView) => string;
+}
+
 interface UserDropdownListProps {
   users: UserView[];
   getUserId: (user: UserView) => string | number;
@@ -74,14 +82,6 @@ const SelectionPanel = (props: SelectionPanelProps): React.JSX.Element => {
     </div>
   );
 };
-
-export interface ShareTableFormProps {
-  tableProps: TableProps;
-  fetchUsers: (query: string) => Promise<UserView[]>;
-  submitUsers: (users: UserView[]) => void;
-  getUserId: (user: UserView) => string | number;
-  getUserLabel: (user: UserView) => string;
-}
 
 const ShareTableForm = (props: ShareTableFormProps) => {
   const { tableProps, fetchUsers, submitUsers, getUserId, getUserLabel } = props;
