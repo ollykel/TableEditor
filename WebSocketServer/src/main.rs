@@ -255,7 +255,7 @@ async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_
         Some(table) => Some(Arc::clone(table))
     };
 
-    //  2. Check for table in database
+    // If the table is not yet held in the in-memory shared table map, fetch it from the database.
     if let None = shared_table {
         let db_cli = db_cli_ref.lock().await;
 
@@ -272,7 +272,17 @@ async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_
                     sender: tx.clone()
                 });
 
-                // lock manager thread
+                // === Lock Manager Thread ========================================================
+                //
+                // Scans all cells in the table at a one second interval. If a cell is currently
+                // locked by a certain user, the time remaining on their lock is decremented by
+                // one. If the time remaining reaches zero, the user's lock is released.
+                //
+                // When the main connection thread receives an action from the user, it should
+                // reset the time remaining to the initial value, extending the duration of the
+                // user's lock.
+                //
+                // ================================================================================
                 {
                     let db_cli_clone = Arc::clone(&db_cli_ref);
                     let shared_table_clone = Arc::clone(&shared_table_new);
@@ -329,8 +339,11 @@ async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_
                 }
 
                 shared_table = Some(Arc::clone(&shared_table_new));
-                let mut shared_tables = shared_tables.lock().await;
-                shared_tables.insert(table_id, Arc::clone(&shared_table_new));
+
+                {
+                    let mut shared_tables = shared_tables.lock().await;
+                    shared_tables.insert(table_id, Arc::clone(&shared_table_new));
+                }
             },
             Err(e) => {
     //      a. If not present, terminate
