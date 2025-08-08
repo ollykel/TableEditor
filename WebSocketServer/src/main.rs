@@ -2,8 +2,6 @@ use std::{
     net::SocketAddr,
     sync::{
         Arc,
-        atomic,
-        atomic::AtomicU32
     },
     thread,
     time::Duration,
@@ -72,11 +70,14 @@ enum ClientMessage {
 
 type SharedTableCells = Vec<Vec<Arc<Mutex<TableCell>>>>;
 struct SharedTable {
-    cells: Mutex<SharedTableCells>,
-    client_count: AtomicU32,
+    n_rows: usize,
+    n_cols: usize,
+    cells: SharedTableCells,
+    client_count: u32,
     sender: broadcast::Sender<ClientMessage>
 }
-type SharedTablesMap = Arc<Mutex<HashMap<TableId, Arc<SharedTable>>>>;
+type SharedTableRef = Arc<Mutex<SharedTable>>;
+type SharedTablesMap = Arc<Mutex<HashMap<TableId, SharedTableRef>>>;
 type TableId = i64;// corresponds to Postgres BIGINT
 type SharedClientId = Arc<Mutex<u64>>;
 
@@ -99,7 +100,7 @@ impl fmt::Display for NoTableError {
 
 impl Error for NoTableError {}
 
-async fn fetch_table(db_cli: &postgres::Client, table_id: TableId) -> Result<SharedTableCells, NoTableError> {
+async fn fetch_table(db_cli: &postgres::Client, table_id: TableId) -> Result<(SharedTableCells, usize, usize), NoTableError> {
     let rows = match db_cli.query("SELECT width, height FROM tables WHERE id = $1", &[&table_id]).await {
         Err(_) => { return Err(NoTableError::new(table_id)); },
         Ok(rows) => rows
@@ -173,7 +174,7 @@ async fn fetch_table(db_cli: &postgres::Client, table_id: TableId) -> Result<Sha
             }))).collect()
         }).collect();
 
-    Ok(table)
+    Ok((table, height, width))
 }
 
 // === Pseudocode =================================================================================
@@ -191,7 +192,7 @@ async fn fetch_table(db_cli: &postgres::Client, table_id: TableId) -> Result<Sha
 async fn main() {
     // All services serve on port 3000 by default
     let port = 3000u16;
-    let shared_tables = Arc::new(Mutex::new(HashMap::<TableId, Arc<SharedTable>>::new()));
+    let shared_tables = Arc::new(Mutex::new(HashMap::<TableId, SharedTableRef>::new()));
     let next_client_id: SharedClientId = Arc::new(Mutex::new(0u64));
 
     // Configure database client
@@ -274,28 +275,30 @@ async fn main() {
 async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_id: TableId, db_cli_ref: Arc<Mutex<postgres::Client>>, next_client_id: SharedClientId) {
     // Pseudocode:
     //  1. Check for table in map
-    let mut shared_table : Option<Arc<SharedTable>> = match shared_tables.lock().await.get(&table_id) {
+    let mut shared_table_ref : Option<SharedTableRef> = match shared_tables.lock().await.get(&table_id) {
         None => None,
     //      a. If present, proceed to AAA
-        Some(table) => Some(Arc::clone(table))
+        Some(table_ref) => Some(Arc::clone(table_ref))
     };
 
     // If the table is not yet held in the in-memory shared table map, fetch it from the database.
-    if let None = shared_table {
+    if let None = shared_table_ref {
         let db_cli = db_cli_ref.lock().await;
 
         match fetch_table(&db_cli, table_id).await {
-            Ok(table_cells) => {
+            Ok((table_cells, n_rows, n_cols)) => {
                 let (tx, _rx) = broadcast::channel::<ClientMessage>(100);
                 //      b. Add table to table map
                 //          i. Set client count to 0
                 //          ii. TODO: Spawn lock manager thread
                 //          iii. Create broadcast channel
-                let shared_table_new = Arc::new(SharedTable{
-                    cells: Mutex::new(table_cells),
-                    client_count: AtomicU32::new(0u32),
+                let shared_table_new = Arc::new(Mutex::new(SharedTable{
+                    n_rows: n_rows,
+                    n_cols: n_cols,
+                    cells: table_cells,
+                    client_count: 0,
                     sender: tx.clone()
-                });
+                }));
 
                 // === Lock Manager Thread ========================================================
                 //
@@ -317,13 +320,13 @@ async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_
                         block_on(async move {
                             loop {
                                 {
-                                    let shared_table_cells = shared_table_clone.cells.lock().await;
-                                    let table_height = shared_table_cells.len();
-                                    let table_width = shared_table_cells.first().unwrap().len();
+                                    let shared_table = shared_table_clone.lock().await;
+                                    let table_height = shared_table.n_rows;
+                                    let table_width = shared_table.n_cols;
 
                                     for row in 0..table_height {
                                         for col in 0..table_width {
-                                            let mut cell = shared_table_cells[row][col].lock().await;
+                                            let mut cell = shared_table.cells[row][col].lock().await;
                                             let mut to_reset = false;
 
                                             if let Some(ref mut lock) = cell.lock {
@@ -363,7 +366,7 @@ async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_
                     });
                 }
 
-                shared_table = Some(Arc::clone(&shared_table_new));
+                shared_table_ref = Some(Arc::clone(&shared_table_new));
 
                 {
                     let mut shared_tables = shared_tables.lock().await;
@@ -377,52 +380,57 @@ async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_
         };// end match fetch_table(db_cli, table_id)
     }
 
-    match &mut shared_table {
+    match shared_table_ref {
         None => {
             eprintln!("Could not access table with id = {}", table_id);
         },
-        Some(ref mut table) => {
+        Some(table_ref) => {
             let (mut user_ws_tx, mut user_ws_rx) = ws.split();
             let current_client_id;
-
-            //  3. Increment client count on table
-            table.client_count.fetch_add(1, atomic::Ordering::Relaxed);
-
-            //  4. Subscribe to broadcast channel
-            let mut rx = table.sender.subscribe();
+            let mut rx;
 
             {
-                let mut id_lock = next_client_id.lock().await;
-                current_client_id = *id_lock;
-                *id_lock += 1;
-            }
+                let mut table = table_ref.lock().await;
 
-            let init_table = {
-                let mut snapshot = vec![];
-                let table_cells = table.cells.lock().await;
+                //  3. Increment client count on table
+                table.client_count += 1;
 
-                for row in table_cells.iter() {
-                    let mut snap_row = vec![];
-                    for cell in row {
-                        let c = cell.lock().await;
-                        snap_row.push(TableCellClientView{
-                            text: c.text.clone(),
-                            owner_id: match &c.lock {
-                                None => None,
-                                Some(lock) => Some(lock.owner_id)
-                            }
-                        });
-                    }
-                    snapshot.push(snap_row);
+                //  4. Subscribe to broadcast channel
+                rx = table.sender.subscribe();
+
+                {
+                    let mut id_lock = next_client_id.lock().await;
+                    current_client_id = *id_lock;
+                    *id_lock += 1;
                 }
-                snapshot
-            };
 
-            let init_msg = ClientMessage::Init {
-                client_id: current_client_id,
-                table: init_table,
-            };
-            let _ = user_ws_tx.send(Message::text(serde_json::to_string(&init_msg).unwrap())).await;
+                let init_table = {
+                    let mut snapshot = vec![];
+                    let table_cells = &table.cells;
+
+                    for row in table_cells.iter() {
+                        let mut snap_row = vec![];
+                        for cell in row {
+                            let c = cell.lock().await;
+                            snap_row.push(TableCellClientView{
+                                text: c.text.clone(),
+                                owner_id: match &c.lock {
+                                    None => None,
+                                    Some(lock) => Some(lock.owner_id)
+                                }
+                            });
+                        }
+                        snapshot.push(snap_row);
+                    }
+                    snapshot
+                };
+
+                let init_msg = ClientMessage::Init {
+                    client_id: current_client_id,
+                    table: init_table,
+                };
+                let _ = user_ws_tx.send(Message::text(serde_json::to_string(&init_msg).unwrap())).await;
+            }
 
             let send_task = tokio::spawn(async move {
                 while let Ok(msg) = rx.recv().await {
@@ -435,7 +443,7 @@ async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_
 
             //  5. Take messages until disconnect
             let recv_task = tokio::spawn({
-                let table = Arc::clone(&table);
+                let table_ref = Arc::clone(&table_ref);
                 async move {
                     while let Some(Ok(msg)) = user_ws_rx.next().await {
                         if let Ok(text_str) = msg.to_str() {
@@ -443,9 +451,9 @@ async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_
                                 match client_msg {
                                     ClientMessage::Insert { ref mut client_id, cell: (r, c), index, ref text, .. } => {
                                         let cell_ref = {
-                                            let table_cells = table.cells.lock().await;
+                                            let table = table_ref.lock().await;
 
-                                            Arc::clone(&table_cells[r][c])
+                                            Arc::clone(&table.cells[r][c])
                                         };
                                         let mut cell = cell_ref.lock().await;
 
@@ -457,15 +465,20 @@ async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_
                                                 cell.text.insert_str(index, text);
                                             }
                                             cell.lock = Some(CellLockData { owner_id: current_client_id, duration_secs: 3 });
-                                            table.sender.send(client_msg).ok();
-                                            table.sender.send(ClientMessage::AcquireLock { client_id: current_client_id, cell: (r, c) }).ok();
+
+                                            {
+                                                let table = table_ref.lock().await;
+
+                                                table.sender.send(client_msg).ok();
+                                                table.sender.send(ClientMessage::AcquireLock { client_id: current_client_id, cell: (r, c) }).ok();
+                                            }
                                         }
                                     }
                                     ClientMessage::Delete { ref mut client_id, cell: (r, c), start, end, .. } => {
                                         let cell_ref = {
-                                            let table_cells = table.cells.lock().await;
+                                            let table = table_ref.lock().await;
 
-                                            Arc::clone(&table_cells[r][c])
+                                            Arc::clone(&table.cells[r][c])
                                         };
                                         let mut cell = cell_ref.lock().await;
 
@@ -474,16 +487,21 @@ async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_
                                             if start <= end && end <= cell.text.len() {
                                                 cell.text.replace_range(start..end, "");
                                                 cell.lock = Some(CellLockData { owner_id: current_client_id, duration_secs: 3 });
-                                                table.sender.send(client_msg).ok();
-                                                table.sender.send(ClientMessage::AcquireLock { client_id: current_client_id, cell: (r, c) }).ok();
+
+                                                {
+                                                    let table = table_ref.lock().await;
+
+                                                    table.sender.send(client_msg).ok();
+                                                    table.sender.send(ClientMessage::AcquireLock { client_id: current_client_id, cell: (r, c) }).ok();
+                                                }
                                             }
                                         }
                                     }
                                     ClientMessage::Replace { ref mut client_id, cell: (r, c), start, end, ref text, .. } => {
                                         let cell_ref = {
-                                            let table_cells = table.cells.lock().await;
+                                            let table = table_ref.lock().await;
 
-                                            Arc::clone(&table_cells[r][c])
+                                            Arc::clone(&table.cells[r][c])
                                         };
                                         let mut cell = cell_ref.lock().await;
                                         *client_id = current_client_id;
@@ -491,24 +509,33 @@ async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_
                                             if start <= end && end <= cell.text.len() {
                                                 cell.text.replace_range(start..end, text);
                                                 cell.lock = Some(CellLockData { owner_id: current_client_id, duration_secs: 3 });
-                                                table.sender.send(client_msg).ok();
-                                                table.sender.send(ClientMessage::AcquireLock { client_id: current_client_id, cell: (r, c) }).ok();
+
+                                                {
+                                                    let table = table_ref.lock().await;
+
+                                                    table.sender.send(client_msg).ok();
+                                                    table.sender.send(ClientMessage::AcquireLock { client_id: current_client_id, cell: (r, c) }).ok();
+                                                }
                                             }
                                         }
                                     },
                                     ClientMessage::InsertRows { client_id: _, insertion_index, num_rows } => {
                                         // Update table in-memory
                                         // TODO: store table dimensions independently in struct
-                                        let mut table_cells = table.cells.lock().await;
+                                        let mut table = table_ref.lock().await;
 
-                                        if insertion_index > table_cells.len() {
+                                        if insertion_index > table.n_rows {
                                             // invalid insertion index
                                             // TODO: return insertion index
+                                            eprintln!(
+                                                "ERROR: insertion index ({}) > table height ({})",
+                                                insertion_index, table.n_rows
+                                            );
                                             continue;
                                         }
 
-                                        let n_rows_orig = table_cells.len();
-                                        let n_cols = table_cells.first().unwrap().len();
+                                        let n_rows_orig = table.cells.len();
+                                        let n_cols = table.n_cols;
 
                                         for _ in 0..num_rows {
                                             let mut new_row = Vec::<Arc<Mutex<TableCell>>>::new();
@@ -519,7 +546,7 @@ async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_
                                                     lock: None
                                                 })));
                                             }// end for _ in 0..n_cols
-                                            table_cells.insert(insertion_index, new_row);
+                                            table.cells.insert(insertion_index, new_row);
                                         }// end for _ in 0..num_rows
 
                                         // TODO: Make a database transaction
@@ -585,7 +612,11 @@ async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_
             }
 
             //  6. Decrement client count
-            table.client_count.fetch_sub(1, atomic::Ordering::Relaxed);
+            {
+                let mut table = table_ref.lock().await;
+
+                table.client_count -= 1;
+            }
 
             println!("Client {} disconnected", current_client_id);
         }
