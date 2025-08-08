@@ -120,7 +120,7 @@ const TableCard = (props: TableViewProps): React.JSX.Element => {
         } else {
           alert('Table shared successfully!');
           queryClient.invalidateQueries({
-            queryKey: ['shared_tables']
+            queryKey: ['own_tables']
           });
           closeModal();
         }
