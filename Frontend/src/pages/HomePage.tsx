@@ -78,8 +78,9 @@ interface TableViewProps extends TableProps {
   isShareable: boolean;
 }
 
-const Table = (props: TableViewProps): React.JSX.Element => {
-  const { id,
+const TableCard = (props: TableViewProps): React.JSX.Element => {
+  const {
+    id,
     name,
     width,
     height,
@@ -147,7 +148,11 @@ const Table = (props: TableViewProps): React.JSX.Element => {
                 <span>Shared users:</span>
                 <ul className="flex flex-row flex-wrap">
                   {
-                    sharedUsers.map(u => <UserTag user={u} variant="brief" />)
+                    sharedUsers.map(u => (
+                      <li key={u.id}>
+                        <UserTag user={u} variant="brief" />
+                      </li>
+                    ))
                   }
                 </ul>
               </>
@@ -214,7 +219,7 @@ const TableList = (props: TableListProps): React.JSX.Element => {
           <ul id="table-list">
             {(tables as TableViewProps[]).map(table => (
               <li key={table.id}>
-                <Table {...table} />
+                <TableCard {...table} />
               </li>
             ))}
           </ul>
