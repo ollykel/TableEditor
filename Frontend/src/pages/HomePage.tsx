@@ -134,22 +134,26 @@ const Table = (props: TableViewProps): React.JSX.Element => {
 
       {/** Display shared users, or display that there are no shared users **/}
       {
-        (!sharedUsers || (sharedUsers.length < 1)) ? (
-            <div>
-              <p>
-                No shared users
-              </p>
-            </div>
-          ) : (
-            <div className="my-4 flex flex-row">
-              <span>Shared users:</span>
-              <ul className="flex flex-row flex-wrap">
-                {
-                  sharedUsers.map(user => UserTag({ user }))
-                }
-              </ul>
-            </div>
-          )
+        <div className="my-2 flex flex-row">
+        {
+          (!sharedUsers || (sharedUsers.length < 1)) ? (
+              <div>
+                <p>
+                  No shared users
+                </p>
+              </div>
+            ) : (
+              <>
+                <span>Shared users:</span>
+                <ul className="flex flex-row flex-wrap">
+                  {
+                    sharedUsers.map(u => <UserTag user={u} variant="brief" />)
+                  }
+                </ul>
+              </>
+            )
+        }
+        </div>
       }
 
       {/** Provide modal for adding/removing shared users **/}
