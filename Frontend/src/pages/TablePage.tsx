@@ -177,7 +177,7 @@ const TablePage = () => {
                 <span>Shared with: </span>
                 {
                   sharedUsers.map((user: UserView) => (
-                    <UserTag user={user} variant="brief" />
+                    <UserTag user={user} variant="full" />
                   ))
                 }
               </div>
