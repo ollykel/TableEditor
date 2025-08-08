@@ -34,7 +34,7 @@ const ErrorOther = (statusCode: number, statusText: string): ErrorOther => ({
   type: "other", statusCode, statusText
 });
 
-type TableFetchError = ErrorNotFound | ErrorOther;
+type FetchError = ErrorNotFound | ErrorOther;
 
 const TablePage = () => {
   const { tableId } = useParams();
@@ -44,7 +44,12 @@ const TablePage = () => {
     addSharedUsers
   } = useAuthorizedFetch();
   const queryClient = useQueryClient();
-  const { isPending, error, data: tableProps, isFetching } = useQuery<TableProps, TableFetchError>({
+  const {
+    isPending: isTablePending,
+    error: tableError,
+    data: tableProps,
+    isFetching: isTableFetching
+  } = useQuery<TableProps, FetchError>({
     retry: false,
     queryKey: ['tables', tableId],
     queryFn: async () => {
@@ -59,25 +64,46 @@ const TablePage = () => {
       }
     }
   });
+  const {
+    isPending: isSharedUsersPending,
+    error: sharedUsersError,
+    data: sharedUsers,
+    isFetching: isSharedUsersFetching
+  } = useQuery<UserView[], FetchError>({
+    retry: false,
+    queryKey: ['tables', tableId, 'shared_users'],
+    queryFn: async () => {
+      const resp = await fetchAuthenticated(`/api/v1/tables/${tableId}/shared_users`);
+
+      if (resp.status === 404) {
+        throw ErrorNotFound();
+      } else if (! resp.ok) {
+        throw ErrorOther(resp.status, resp.statusText);
+      } else {
+        return await resp.json();
+      }
+    }
+  });
+
   const { Modal: ShareTableModal, openModal, closeModal } = useModal();
 
-  if (error) {
-    switch (error.type) {
+  if (tableError) {
+    switch (tableError.type) {
       case "not_found":
         return (<NotFoundPage />);
       default:
         return (
           <div>
-            <h1>Error: {error.statusText} ({error.statusCode})</h1>
+            <h1>Error: {tableError.statusText} ({tableError.statusCode})</h1>
           </div>
         );
-    }// end switch (error.type)
-  } else if (isPending || isFetching) {
+    }// end switch (tableError.type)
+  } else if (isTablePending || isTableFetching) {
       <div>
         <h1>Loading ...</h1>
       </div>
   } else {
-    const { name: tableName, sharedUsers } = tableProps;
+    const { name: tableName } = tableProps;
 
     const handleAddSharedUsers = (users: UserView[]) => {
       addSharedUsers(tableProps, users)
@@ -87,7 +113,7 @@ const TablePage = () => {
           } else {
             alert('Shared users added successfully');
             queryClient.invalidateQueries({
-              queryKey: ['tables', tableId]
+              queryKey: ['tables', tableId, 'shared_users']
             });
           }
         });
@@ -132,7 +158,21 @@ const TablePage = () => {
 
           {/** Display shared users**/}
           {
-            sharedUsers && sharedUsers.length && (
+            sharedUsersError && (
+              <div className="text-lg font-bold bg-red-600">
+                <p>
+                  ERROR: {sharedUsersError}
+                </p>
+              </div>
+            )
+          }
+          {
+            (isSharedUsersPending || isSharedUsersFetching) && (
+              <span>Loading shared users...</span>
+            )
+          }
+          {
+            !sharedUsersError && sharedUsers && sharedUsers.length && (
               <div className="flex flex-row my-4 align-center">
                 <span>Shared with: </span>
                 {
