@@ -3,7 +3,6 @@ import {
   useQuery,
   useQueryClient
 } from '@tanstack/react-query';
-import { X } from 'lucide-react';
 
 import { useAuthorizedFetch } from '@/context/AuthorizedFetchContext';
 import { WebSocketProvider } from '@/context/WebSocketContext';
@@ -12,6 +11,7 @@ import TableEditor from '@/components/TableEditor';
 import ShareTableForm from '@/components/ShareTableForm';
 import { useModal } from '@/components/Modal';
 import Button from '@/components/Button';
+import CloseModalButton from '@/components/CloseModalButton';
 import UserTag from '@/components/UserTag';
 import NotFoundPage from '@/pages/NotFoundPage';
 
@@ -138,14 +138,8 @@ const TablePage = () => {
             width='50%'
             height='50%'
           >
-            <div className="flex justify-end">
-              <button
-                onClick={closeModal}
-                className="hover:cursor-pointer"
-              >
-                <X />
-              </button>
-            </div>
+            <CloseModalButton closeModal={closeModal} />
+
             <h2 className="text-xl font-semibold text-center">Share Table "{tableName}"</h2>
             <ShareTableForm
               tableProps={tableProps}
@@ -161,7 +155,16 @@ const TablePage = () => {
             sharedUsersError && (
               <div className="text-lg font-bold bg-red-600">
                 <p>
-                  ERROR: {sharedUsersError}
+                  ERROR: {(() => {
+                    switch (sharedUsersError.type) {
+                      case 'not_found':
+                        return 'user(s) not found';
+                      default:
+                        const { statusCode, statusText } = sharedUsersError;
+
+                        return `Request failed with status ${statusCode}: ${statusText}`;
+                    }
+                  })()}
                 </p>
               </div>
             )
