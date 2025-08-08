@@ -75,7 +75,7 @@ const AddTableForm = (props: AddTableFormProps) => {
 };
 
 interface TableViewProps extends TableProps {
-  isShareable: boolean;
+  variant: 'own' | 'shared';
 }
 
 const TableCard = (props: TableViewProps): React.JSX.Element => {
@@ -84,8 +84,9 @@ const TableCard = (props: TableViewProps): React.JSX.Element => {
     name,
     width,
     height,
-    isShareable,
-    sharedUsers
+    owner,
+    sharedUsers,
+    variant
   } = props;
   const queryClient = useQueryClient();
   const { fetchAuthenticated } = useAuthorizedFetch();
@@ -131,6 +132,14 @@ const TableCard = (props: TableViewProps): React.JSX.Element => {
       <Link to={`/app/tables/${id}`}>
         <h2 className="text-lg font-semibold">{name}</h2>
       </Link>
+      {/** If this is not the user's own table, display the owner **/}
+      {
+        (variant === 'shared') && (
+          <div className="flex flex-row flex-wrap my-1">
+            Owner: <UserTag user={owner} variant="full" />
+          </div>
+        )
+      }
       <p>Dimensions: {height} X {width}</p>
 
       {/** Display shared users, or display that there are no shared users **/}
@@ -163,7 +172,7 @@ const TableCard = (props: TableViewProps): React.JSX.Element => {
 
       {/** Provide modal for adding/removing shared users **/}
       {
-        isShareable && (
+        (variant === 'own') && (
           <div>
             <button
               onClick={openModal}
@@ -239,7 +248,7 @@ const HomePage = () => {
       const response = await fetchAuthenticated('/api/v1/tables?owners=me');
 
       return ((await response.json()) as TableProps[])
-        .map((table) => ({ ...table, isShareable: true }));
+        .map((table) => ({ ...table, variant: 'own' }));
     }
   });
   const sharedWithQueryStatus = useQuery({
@@ -248,7 +257,7 @@ const HomePage = () => {
       const response = await fetchAuthenticated('/api/v1/tables?shared_with=me');
 
       return ((await response.json()) as TableProps[])
-        .map((table) => ({ ...table, isShareable: false }));
+        .map((table) => ({ ...table, variant: 'shared' }));
     }
   });
 
