@@ -40,13 +40,6 @@ struct CellLockData {
     duration_secs: u32
 }
 
-#[derive(Clone, Debug)]
-struct TableCellData {
-    text: String
-}
-
-type TableData = Vec<Vec<TableCellData>>;
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct TableCell {
     text: String,
