@@ -15,6 +15,7 @@ import ShareTableForm from '@/components/ShareTableForm';
 import Card from '@/components/Card';
 import Link from '@/components/Link';
 import Button from '@/components/Button';
+import UserTag from '@/components/UserTag';
 
 import type TableProps from '@/types/TableProps';
 import type { UserView } from '@/types/User';
@@ -74,11 +75,19 @@ const AddTableForm = (props: AddTableFormProps) => {
 };
 
 interface TableViewProps extends TableProps {
-  isShareable: boolean;
+  variant: 'own' | 'shared';
 }
 
-const Table = (props: TableViewProps): React.JSX.Element => {
-  const { id, name, width, height, isShareable } = props;
+const TableCard = (props: TableViewProps): React.JSX.Element => {
+  const {
+    id,
+    name,
+    width,
+    height,
+    owner,
+    sharedUsers,
+    variant
+  } = props;
   const queryClient = useQueryClient();
   const { fetchAuthenticated } = useAuthorizedFetch();
   const { Modal: ShareTableModal, openModal, closeModal } = useModal();
@@ -119,13 +128,51 @@ const Table = (props: TableViewProps): React.JSX.Element => {
   };
 
   return (
-    <Card className="flex flex-col items-center w-4/5">
+    <Card className="flex flex-col items-center py-2 w-4/5">
       <Link to={`/app/tables/${id}`}>
         <h2 className="text-lg font-semibold">{name}</h2>
       </Link>
-      <p>Dimensions: {height} X {width}</p>
+      {/** If this is not the user's own table, display the owner **/}
       {
-        isShareable && (
+        (variant === 'shared') && (
+          <div className="flex flex-row flex-wrap my-1">
+            Owner: <UserTag user={owner} variant="full" />
+          </div>
+        )
+      }
+      <p>Dimensions: {height} X {width}</p>
+
+      {/** Display shared users, or display that there are no shared users **/}
+      {
+        <div className="my-2 flex flex-row">
+        {
+          (!sharedUsers || (sharedUsers.length < 1)) ? (
+              <div>
+                <p>
+                  No shared users
+                </p>
+              </div>
+            ) : (
+              <>
+                <span>Shared users:</span>
+                <ul className="flex flex-row flex-wrap">
+                  {
+                    sharedUsers.map(u => (
+                      <li key={u.id}>
+                        <UserTag user={u} variant="brief" />
+                      </li>
+                    ))
+                  }
+                </ul>
+              </>
+            )
+        }
+        </div>
+      }
+
+      {/** Provide modal for adding/removing shared users **/}
+      {
+        (variant === 'own') && (
           <div>
             <button
               onClick={openModal}
@@ -181,7 +228,7 @@ const TableList = (props: TableListProps): React.JSX.Element => {
           <ul id="table-list">
             {(tables as TableViewProps[]).map(table => (
               <li key={table.id}>
-                <Table {...table} />
+                <TableCard {...table} />
               </li>
             ))}
           </ul>
@@ -201,7 +248,7 @@ const HomePage = () => {
       const response = await fetchAuthenticated('/api/v1/tables?owners=me');
 
       return ((await response.json()) as TableProps[])
-        .map((table) => ({ ...table, isShareable: true }));
+        .map((table) => ({ ...table, variant: 'own' }));
     }
   });
   const sharedWithQueryStatus = useQuery({
@@ -210,7 +257,7 @@ const HomePage = () => {
       const response = await fetchAuthenticated('/api/v1/tables?shared_with=me');
 
       return ((await response.json()) as TableProps[])
-        .map((table) => ({ ...table, isShareable: false }));
+        .map((table) => ({ ...table, variant: 'shared' }));
     }
   });
 

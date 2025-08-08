@@ -1,12 +1,18 @@
 import { useParams } from 'react-router-dom';
 import {
-  useQuery
+  useQuery,
+  useQueryClient
 } from '@tanstack/react-query';
+import { X } from 'lucide-react';
 
 import { useAuthorizedFetch } from '@/context/AuthorizedFetchContext';
 import { WebSocketProvider } from '@/context/WebSocketContext';
 import AuthedPage from '@/components/AuthedPage';
 import TableEditor from '@/components/TableEditor';
+import ShareTableForm from '@/components/ShareTableForm';
+import { useModal } from '@/components/Modal';
+import Button from '@/components/Button';
+import UserTag from '@/components/UserTag';
 import NotFoundPage from '@/pages/NotFoundPage';
 
 import type TableProps from '@/types/TableProps';
@@ -28,12 +34,22 @@ const ErrorOther = (statusCode: number, statusText: string): ErrorOther => ({
   type: "other", statusCode, statusText
 });
 
-type TableFetchError = ErrorNotFound | ErrorOther;
+type FetchError = ErrorNotFound | ErrorOther;
 
 const TablePage = () => {
   const { tableId } = useParams();
-  const { fetchAuthenticated } = useAuthorizedFetch();
-  const { isPending, error, data: tableProps, isFetching } = useQuery<TableProps, TableFetchError>({
+  const {
+    fetchAuthenticated,
+    fetchUsersByUsernameOrEmail,
+    addSharedUsers
+  } = useAuthorizedFetch();
+  const queryClient = useQueryClient();
+  const {
+    isPending: isTablePending,
+    error: tableError,
+    data: tableProps,
+    isFetching: isTableFetching
+  } = useQuery<TableProps, FetchError>({
     retry: false,
     queryKey: ['tables', tableId],
     queryFn: async () => {
@@ -48,47 +64,129 @@ const TablePage = () => {
       }
     }
   });
+  const {
+    isPending: isSharedUsersPending,
+    error: sharedUsersError,
+    data: sharedUsers,
+    isFetching: isSharedUsersFetching
+  } = useQuery<UserView[], FetchError>({
+    retry: false,
+    queryKey: ['tables', tableId, 'shared_users'],
+    queryFn: async () => {
+      const resp = await fetchAuthenticated(`/api/v1/tables/${tableId}/shared_users`);
 
-  if (error) {
-    switch (error.type) {
+      if (resp.status === 404) {
+        throw ErrorNotFound();
+      } else if (! resp.ok) {
+        throw ErrorOther(resp.status, resp.statusText);
+      } else {
+        return await resp.json();
+      }
+    }
+  });
+
+  const { Modal: ShareTableModal, openModal, closeModal } = useModal();
+
+  if (tableError) {
+    switch (tableError.type) {
       case "not_found":
         return (<NotFoundPage />);
       default:
         return (
           <div>
-            <h1>Error: {error.statusText} ({error.statusCode})</h1>
+            <h1>Error: {tableError.statusText} ({tableError.statusCode})</h1>
           </div>
         );
-    }// end switch (error.type)
-  } else if (isPending || isFetching) {
+    }// end switch (tableError.type)
+  } else if (isTablePending || isTableFetching) {
       <div>
         <h1>Loading ...</h1>
       </div>
   } else {
-    const { name, sharedUsers } = tableProps;
+    const { name: tableName } = tableProps;
+
+    const handleAddSharedUsers = (users: UserView[]) => {
+      addSharedUsers(tableProps, users)
+        .then((resp) => {
+          if (! resp.ok) {
+            alert('Failed to add shared users');
+          } else {
+            alert('Shared users added successfully');
+            queryClient.invalidateQueries({
+              queryKey: ['tables', tableId, 'shared_users']
+            });
+          }
+        });
+    };
 
     return (
-      <AuthedPage title={name}>
-        <h1 className="text-4xl font-serif font-bold text-center mb-4">
-          Table: {name}
-        </h1>
-        {
-          sharedUsers && sharedUsers.length && (
-            <div className="flex flex-row mb-4">
-              <span>Shared with: </span>
-              {
-                sharedUsers.map((user: UserView) => (
-                  <div className="ml-2">
-                    {user.username}
-                  </div>
-                ))
-              }
+      <AuthedPage title={tableName}>
+        <div className="px-4">
+          <h1 className="text-4xl font-serif font-bold text-center mb-4">
+            Table: {tableName}
+          </h1>
+
+          {/** Modify shared users**/}
+          <Button
+            onClick={openModal}
+            className="bg-blue-600 hover:bg-blue-400"
+          >
+            Share Table
+          </Button>
+
+          <ShareTableModal
+            width='50%'
+            height='50%'
+          >
+            <div className="flex justify-end">
+              <button
+                onClick={closeModal}
+                className="hover:cursor-pointer"
+              >
+                <X />
+              </button>
             </div>
-          )
-        }
-        <WebSocketProvider>
-          <TableEditor tableInfo={tableProps} />
-        </WebSocketProvider>
+            <h2 className="text-xl font-semibold text-center">Share Table "{tableName}"</h2>
+            <ShareTableForm
+              tableProps={tableProps}
+              fetchUsers={fetchUsersByUsernameOrEmail}
+              submitUsers={handleAddSharedUsers}
+              getUserId={(u: UserView) => u.id}
+              getUserLabel={(u: UserView) => `${u.username} (${u.email})`}
+            />
+          </ShareTableModal>
+
+          {/** Display shared users**/}
+          {
+            sharedUsersError && (
+              <div className="text-lg font-bold bg-red-600">
+                <p>
+                  ERROR: {sharedUsersError}
+                </p>
+              </div>
+            )
+          }
+          {
+            (isSharedUsersPending || isSharedUsersFetching) && (
+              <span>Loading shared users...</span>
+            )
+          }
+          {
+            !sharedUsersError && sharedUsers && sharedUsers.length && (
+              <div className="flex flex-row my-4 align-center">
+                <span>Shared with: </span>
+                {
+                  sharedUsers.map((user: UserView) => (
+                    <UserTag user={user} variant="full" />
+                  ))
+                }
+              </div>
+            )
+          }
+          <WebSocketProvider>
+            <TableEditor tableInfo={tableProps} />
+          </WebSocketProvider>
+        </div>
       </AuthedPage>
     );
   }

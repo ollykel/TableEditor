@@ -6,6 +6,9 @@ import type { ReactNode } from 'react';
 
 import { useAuth } from '@/context/AuthContext';
 
+import type { UserView } from '@/types/User';
+import type TableProps from '@/types/TableProps';
+
 export interface FetchOptionsType {
   headers?: object;
   method?: string;
@@ -14,10 +17,20 @@ export interface FetchOptionsType {
 
 export interface AuthorizedFetchContextData {
   fetchAuthenticated: (path: string, options?: FetchOptionsType) => Promise<Response>;
+  fetchUsersByUsernameOrEmail: (query: string) => Promise<UserView[]>;
+  addSharedUsers: (table: TableProps, users: UserView[]) => Promise<Response>;
 }
 
 const AuthorizedFetchContext = createContext<AuthorizedFetchContextData>({
   fetchAuthenticated: (_path: string, _options?: FetchOptionsType) => new Promise(
+    () => new Response(null, {
+      status: 400
+    })
+  ),
+  fetchUsersByUsernameOrEmail: (_query: string) => new Promise(
+    () => []
+  ),
+  addSharedUsers: (_table: TableProps, _users: UserView[]) => new Promise(
     () => new Response(null, {
       status: 400
     })
@@ -59,8 +72,36 @@ export const AuthorizedFetchProvider = ({ children }: { children: ReactNode }) =
     }
   };
 
+  const fetchUsersByUsernameOrEmail = async (query: string): Promise<UserView[]> => {
+    const queryEncoded = encodeURIComponent(query);
+    const resp = await fetchAuthenticated(`/api/v1/users?starts_with=${queryEncoded}`);
+
+    if (! resp.ok) {
+      // TODO: error handling logic here
+      return [];
+    } else {
+      return await resp.json();
+    }
+  };
+
+  const addSharedUsers = async (table: TableProps, users: UserView[]): Promise<Response> => {
+    const payload = ({ userIds: users.map((u: UserView) => u.id) });
+
+    return await fetchAuthenticated(`/api/v1/tables/${table.id}/share`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+  };
+
   return (
-    <AuthorizedFetchContext.Provider value={{ fetchAuthenticated }}>
+    <AuthorizedFetchContext.Provider value={{
+      fetchAuthenticated,
+      fetchUsersByUsernameOrEmail,
+      addSharedUsers
+    }}>
       {children}
     </AuthorizedFetchContext.Provider>
   );
