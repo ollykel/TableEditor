@@ -15,6 +15,7 @@ import ShareTableForm from '@/components/ShareTableForm';
 import Card from '@/components/Card';
 import Link from '@/components/Link';
 import Button from '@/components/Button';
+import UserTag from '@/components/UserTag';
 
 import type TableProps from '@/types/TableProps';
 import type { UserView } from '@/types/User';
@@ -78,7 +79,13 @@ interface TableViewProps extends TableProps {
 }
 
 const Table = (props: TableViewProps): React.JSX.Element => {
-  const { id, name, width, height, isShareable } = props;
+  const { id,
+    name,
+    width,
+    height,
+    isShareable,
+    sharedUsers
+  } = props;
   const queryClient = useQueryClient();
   const { fetchAuthenticated } = useAuthorizedFetch();
   const { Modal: ShareTableModal, openModal, closeModal } = useModal();
@@ -124,6 +131,28 @@ const Table = (props: TableViewProps): React.JSX.Element => {
         <h2 className="text-lg font-semibold">{name}</h2>
       </Link>
       <p>Dimensions: {height} X {width}</p>
+
+      {/** Display shared users, or display that there are no shared users **/}
+      {
+        (!sharedUsers || (sharedUsers.length < 1)) ? (
+            <div>
+              <p>
+                No shared users
+              </p>
+            </div>
+          ) : (
+            <div className="my-4 flex flex-row">
+              <span>Shared users:</span>
+              <ul className="flex flex-row flex-wrap">
+                {
+                  sharedUsers.map(user => UserTag({ user }))
+                }
+              </ul>
+            </div>
+          )
+      }
+
+      {/** Provide modal for adding/removing shared users **/}
       {
         isShareable && (
           <div>
