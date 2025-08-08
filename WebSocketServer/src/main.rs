@@ -137,7 +137,39 @@ async fn fetch_table(db_cli: &postgres::Client, table_id: TableId) -> Result<Sha
         let i_col : i32 = row.get(1);
         let text : &str = row.get(2);
 
-        table_data[i_row as usize][i_col as usize] = String::from(text);
+        match (TryInto::<usize>::try_into(i_row), TryInto::<usize>::try_into(i_col)) {
+            (Err(e_row), Ok(_)) => {
+                eprintln!("ERROR: could not convert {} into usize row index: {}", i_row, e_row);
+            },
+            (Ok(_), Err(e_col)) => {
+                eprintln!("ERROR: could not convert {} into usize col index: {}", i_col, e_col);
+            },
+            (Err(e_row), Err(e_col)) => {
+                eprintln!(
+                    "ERROR: could not convert {}, {} into usize indices: {}, {}",
+                    i_row, i_col, e_row, e_col
+                );
+            },
+            (Ok(i_row), Ok(i_col)) => match table_data.get_mut(i_row) {
+                None => {
+                    eprintln!(
+                        "ERROR: row index {} falls outside table of dimension {}x{}",
+                        i_row, height, width
+                    );
+                },
+                Some(row) => match row.get_mut(i_col) {
+                    None => {
+                        eprintln!(
+                            "ERROR: col index {} falls outside table of dimension {}x{}",
+                            i_col, height, width
+                        );
+                    },
+                    Some(cell_text) => {
+                        *cell_text = String::from(text);
+                    }
+                }
+            }
+        };// end match (TryInto::<usize>::try_into(i_row), TryInto::<usize>::try_into(i_col))
     }// end for row in rows
 
     let table: SharedTableCells = (0..height)
