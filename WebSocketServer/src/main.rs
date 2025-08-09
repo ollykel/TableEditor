@@ -64,6 +64,7 @@ enum ClientMessage {
     Delete { client_id: u64, cell: (usize, usize), start: usize, end: usize },
     Replace { client_id: u64, cell: (usize, usize), start: usize, end: usize, text: String },
     InsertRows { client_id: u64, insertion_index: usize, num_rows: usize },
+    InsertCols { client_id: u64, insertion_index: usize, num_cols: usize },
     AcquireLock { client_id: u64, cell: (usize, usize) },
     ReleaseLock { cell: (usize, usize) },
 }
@@ -521,7 +522,6 @@ async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_
                                     },
                                     ClientMessage::InsertRows { client_id: _, insertion_index, num_rows } => {
                                         // Update table in-memory
-                                        // TODO: store table dimensions independently in struct
                                         let mut table = table_ref.lock().await;
 
                                         if insertion_index > table.n_rows {
@@ -582,6 +582,83 @@ async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_
                                                 let i_row = insertion_index + idx;
 
                                                 for i_col in 0..n_cols {
+                                                    match db_cli.execute("INSERT INTO table_cells (table_id, row_num, column_num, text) VALUES ($1, $2, $3, $4)", &[&table_id, &(i_row as i32), &(i_col as i32), &new_text]).await {
+                                                        Ok(n_rows) => {
+                                                           println!("{} rows updated by insertion", n_rows);
+                                                        },
+                                                        Err(e) => {
+                                                            println!("Could not update table cells: {}", e);
+                                                        }
+                                                    };
+                                                }// end for i_col in 0..n_cols
+                                            }// end for idx in 0..n_rows
+                                        }
+
+                                        // Update clients
+                                        table.sender.send(client_msg).ok();
+                                    },
+                                    ClientMessage::InsertCols { client_id: _, insertion_index, num_cols } => {
+                                        // Update table in-memory
+                                        let mut table = table_ref.lock().await;
+
+                                        if insertion_index > table.n_cols {
+                                            // invalid insertion index
+                                            // TODO: return insertion index
+                                            eprintln!(
+                                                "ERROR: insertion index ({}) > table width ({})",
+                                                insertion_index, table.n_cols
+                                            );
+                                            continue;
+                                        }
+
+                                        let n_cols_orig = table.n_cols;
+
+                                        table.n_cols += num_cols;
+
+                                        for i_row in 0..table.n_rows {
+                                            let row = &mut table.cells[i_row];
+
+                                            for _ in 0..num_cols {
+                                                row.insert(insertion_index, Arc::new(Mutex::new(TableCell{
+                                                    text: String::new(),
+                                                    lock: None
+                                                })));
+                                            }// end for _ in 0..num_cols
+                                        }// end for &mut row in table.cells.iter_mut()
+
+                                        // TODO: Make a database transaction
+                                        {
+                                            // Update table dimensions
+                                            let db_cli = db_cli_ref.lock().await;
+
+                                            match db_cli.execute("UPDATE tables SET width = width + $1 WHERE id = $2", &[&(num_cols as i32), &table_id]).await {
+                                                Ok(n_rows) => {
+                                                   println!("{} rows updated by update", n_rows);
+                                                },
+                                                Err(e) => {
+                                                    println!("Could not update table: {}", e);
+                                                }
+                                            };
+
+                                            // increment row number of all existing cells at or
+                                            // above insertion row
+                                            for i_col in (insertion_index..n_cols_orig).rev() {
+                                                match db_cli.execute("UPDATE table_cells SET column_num = column_num + $1 WHERE table_id = $2 AND column_num = $3", &[&(num_cols as i32), &table_id, &(i_col as i32)]).await {
+                                                    Ok(n_rows) => {
+                                                       println!("{} rows updated by update", n_rows);
+                                                    },
+                                                    Err(e) => {
+                                                        println!("Could not update table: {}", e);
+                                                    }
+                                                };
+                                            }
+
+                                            // insert new table cells
+                                            let new_text = String::new();
+                                            for i_row in 0..table.n_rows {
+                                                for idx in 0..num_cols {
+                                                    let i_col = insertion_index + idx;
+
                                                     match db_cli.execute("INSERT INTO table_cells (table_id, row_num, column_num, text) VALUES ($1, $2, $3, $4)", &[&table_id, &(i_row as i32), &(i_col as i32), &new_text]).await {
                                                         Ok(n_rows) => {
                                                            println!("{} rows updated by insertion", n_rows);
