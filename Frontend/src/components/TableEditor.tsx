@@ -173,6 +173,20 @@ export const TableEditor: React.FC<TableEditorProps> = (props: TableEditorProps)
             ...oldTable.slice(insertionIndex),
           ];
         });
+      } else if (msg.type === 'insert_cols') {
+        // TODO: row insertion logic here
+        const { insertion_index: insertionIndex, num_cols: numCols } =  msg;
+
+        // Insert cols with blank text
+        setTable((oldTable) => {
+          return oldTable.map((row) => {
+            return [
+              ...row.slice(0, insertionIndex),
+              ...Array(numCols).fill({ text: "", owner_id: -1 }),
+              ...row.slice(insertionIndex)
+            ] as TableCellData[];
+          });
+        });
       } else if (msg.type === 'release_lock' || msg.client_id !== clientId) {
         mutateCell(msg);
       }
@@ -223,9 +237,39 @@ export const TableEditor: React.FC<TableEditorProps> = (props: TableEditorProps)
     }
   };
 
+  const makeInsertCol = (iCol: number) => () => {
+    if (socket) {
+      console.log(`Inserting col at ${iCol}`);
+      socket.send(JSON.stringify({
+        type: "insert_cols",
+        client_id: 0,
+        insertion_index: iCol,
+        num_cols: 1
+      }));
+    }
+  };
+
   return (
     <div className="w-min">
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${nCols + 1}, auto)`, gap: '0px' }}>
+        {/** Header row **/}
+        {
+          Array(nCols + 1).fill(0).map((_, iCol) => (
+            <div
+              key={`header-col-${iCol}`}
+              className="flex flex-row justify-end"
+            >
+              <button
+                onClick={makeInsertCol(iCol)}
+                className="hover:cursor-pointer hover:bg-blue-200"
+              >
+                <Plus />
+              </button>
+            </div>
+          ))
+        }
+
+        {/** Cell rows **/}
         {table.map((row, iRow) =>
           [
             <div key={`${iRow}-label`} className="items-baseline">

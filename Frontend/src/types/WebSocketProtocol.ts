@@ -59,6 +59,13 @@ export interface MessageInsertRows {
   num_rows: number;
 }
 
+export interface MessageInsertCols {
+  type: "insert_cols";
+  client_id: number;
+  insertion_index: number;
+  num_cols: number;
+}
+
 export interface MessageAcquireLock {
   type: "acquire_lock";
   client_id: number;
@@ -72,4 +79,4 @@ export interface MessageReleaseLock {
 
 export type ClientMutateMessage = MessageInsert | MessageDelete | MessageReplace | MessageAcquireLock;
 export type MutateMessage = ClientMutateMessage | MessageReleaseLock;
-export type Message = MessageInit | MutateMessage | MessageInsertRows;
+export type Message = MessageInit | MutateMessage | MessageInsertRows | MessageInsertCols;
