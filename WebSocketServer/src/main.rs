@@ -534,8 +534,10 @@ async fn handle_connection(ws: WebSocket, shared_tables: SharedTablesMap, table_
                                             continue;
                                         }
 
-                                        let n_rows_orig = table.cells.len();
+                                        let n_rows_orig = table.n_rows;
                                         let n_cols = table.n_cols;
+
+                                        table.n_rows += num_rows;
 
                                         for _ in 0..num_rows {
                                             let mut new_row = Vec::<Arc<Mutex<TableCell>>>::new();
