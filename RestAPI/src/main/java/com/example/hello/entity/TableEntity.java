@@ -1,5 +1,7 @@
 package com.example.hello.entity;
 
+import java.time.ZonedDateTime;
+
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
@@ -23,6 +25,9 @@ public class TableEntity {
     @ManyToOne
     @JoinColumn(name = "owner_id", nullable = false)
     private UserEntity owner;
+
+    @Column(nullable = false, name = "time_created")
+    private ZonedDateTime timeCreated;
 
     @JsonManagedReference
     @ManyToMany
@@ -73,9 +78,10 @@ public class TableEntity {
 
     public TableEntity() {}
 
-    public TableEntity(UserEntity owner, String name, int width, int height) {
+    public TableEntity(UserEntity owner, String name, ZonedDateTime timeCreated, int width, int height) {
         this.owner = owner;
         this.name = name;
+        this.timeCreated = timeCreated;
         this.width = width;
         this.height = height;
     }
