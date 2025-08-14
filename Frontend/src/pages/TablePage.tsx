@@ -60,7 +60,9 @@ const TablePage = () => {
       } else if (! resp.ok) {
         throw ErrorOther(resp.status, resp.statusText);
       } else {
-        return await resp.json();
+        const table = await resp.json();
+
+        return ({ ...table, timeCreated: new Date(table.timeCreated) });
       }
     }
   });
@@ -103,7 +105,7 @@ const TablePage = () => {
         <h1>Loading ...</h1>
       </div>
   } else {
-    const { name: tableName } = tableProps;
+    const { name: tableName, timeCreated } = tableProps;
 
     const handleAddSharedUsers = (users: UserView[]) => {
       addSharedUsers(tableProps, users)
@@ -125,6 +127,8 @@ const TablePage = () => {
           <h1 className="text-4xl font-serif font-bold text-center mb-4">
             Table: {tableName}
           </h1>
+
+          <p>Created {timeCreated.toLocaleString()}</p>
 
           {/** Modify shared users**/}
           <Button
