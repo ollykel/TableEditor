@@ -82,6 +82,7 @@ const TableCard = (props: TableViewProps): React.JSX.Element => {
   const {
     id,
     name,
+    timeCreated,
     width,
     height,
     owner,
@@ -132,6 +133,8 @@ const TableCard = (props: TableViewProps): React.JSX.Element => {
       <Link to={`/app/tables/${id}`}>
         <h2 className="text-lg font-semibold">{name}</h2>
       </Link>
+
+      <p>Created {timeCreated.toLocaleString()}</p>
       {/** If this is not the user's own table, display the owner **/}
       {
         (variant === 'shared') && (
@@ -247,7 +250,9 @@ const HomePage = () => {
     queryFn: async () => {
       const response = await fetchAuthenticated('/api/v1/tables?owners=me');
 
-      return ((await response.json()) as TableProps[])
+      return ((await response.json())
+          .map((props: any) => ({ ...props, timeCreated: new Date(props.timeCreated) })) as TableProps[]
+        )
         .map((table) => ({ ...table, variant: 'own' }));
     }
   });
@@ -256,7 +261,9 @@ const HomePage = () => {
     queryFn: async () => {
       const response = await fetchAuthenticated('/api/v1/tables?shared_with=me');
 
-      return ((await response.json()) as TableProps[])
+      return ((await response.json())
+          .map((props: any) => ({ ...props, timeCreated: new Date(props.timeCreated) })) as TableProps[]
+        )
         .map((table) => ({ ...table, variant: 'shared' }));
     }
   });

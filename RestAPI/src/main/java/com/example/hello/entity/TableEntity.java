@@ -51,6 +51,7 @@ public class TableEntity {
         private Long id;
         private String name;
         private UserEntity.PublicView owner;
+        private ZonedDateTime timeCreated;
         private int width;
         private int height;
         private List<UserEntity.PublicView> sharedUsers;
@@ -59,6 +60,7 @@ public class TableEntity {
           this.id = table.getId();
           this.name = table.getName();
           this.owner = table.getOwner().toPublicView();
+          this.timeCreated = table.getTimeCreated();
           this.width = table.getWidth();
           this.height = table.getHeight();
           this.sharedUsers = table.getSharedUsers().stream()
@@ -69,6 +71,7 @@ public class TableEntity {
         public Long getId() { return this.id; }
         public String getName() { return this.name; }
         public UserEntity.PublicView getOwner() { return this.owner; }
+        public ZonedDateTime getTimeCreated() { return this.timeCreated; }
         public int getWidth() { return this.width; }
         public int getHeight() { return this.height; }
         public List<UserEntity.PublicView> getSharedUsers() {
@@ -95,6 +98,7 @@ public class TableEntity {
     public UserEntity getOwner() { return owner; }
     public Set<UserEntity> getSharedUsers() { return this.sharedUsers; }
     public String getName() { return name; }
+    public ZonedDateTime getTimeCreated() { return this.timeCreated; }
     public int getWidth() { return width; }
     public int getHeight() { return height; }
     public List<TableCell> getCells() { return cells; }
