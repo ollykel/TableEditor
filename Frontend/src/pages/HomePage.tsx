@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import {
   useQuery,
@@ -212,9 +213,35 @@ interface TableListProps {
   queryStatus: any;
 }
 
+interface TableSortingCriteria {
+  label: string;
+  keyFn: (table: TableViewProps) => any;
+}
+
+interface TableSortingCriteriaMap {
+  [key: string]: TableSortingCriteria;
+}
+
+type SortOrder = 'asc' | 'desc';
+
 const TableList = (props: TableListProps): React.JSX.Element => {
+  const sortingCriteria: TableSortingCriteriaMap = {
+    name: {
+      label: "Name",
+      keyFn: (table: TableViewProps) => table.name
+    },
+    timeCreated: {
+      label: "Time Created",
+      keyFn: (table: TableViewProps) => table.timeCreated
+    }
+  };
   const { queryStatus } = props;
+  const [currSortCriteriaId, setCurrSortCriteriaId] = useState<string>('name');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const { isPending, error, data: tables, isFetching } = queryStatus;
+
+  // -- derived state
+  const currSortCriteria = sortingCriteria[currSortCriteriaId];
 
   if (error) {
     return (<p>Error: {`${error}`}</p>);
@@ -226,10 +253,61 @@ const TableList = (props: TableListProps): React.JSX.Element => {
     if (tables.length < 1) {
       return <p>No tables to show</p>
     } else {
+      const tablesSorted = [...tables] as TableViewProps[];
+      const { keyFn: sortKeyFn } = currSortCriteria;
+
+      tablesSorted.sort((a: TableViewProps, b: TableViewProps) => {
+        const keyA = sortKeyFn(a);
+        const keyB = sortKeyFn(b);
+        const cmpVal = keyA < keyB ?
+          -1 :
+          keyB < keyA ?
+          1 :
+          0;
+
+        return (sortOrder === 'desc') ? (-cmpVal) : cmpVal;
+      });
+
+      const toggleSortOrder = () => {
+        setSortOrder((order) => order === 'asc' ? 'desc' : 'asc');
+      };
+
+      const selectSortCriteria = (ev: React.ChangeEvent<HTMLSelectElement>) => {
+        ev.preventDefault();
+
+        setCurrSortCriteriaId(ev.target.value);
+      };
+
       return (
         <div>
+          {/** Choose sorting criteria **/}
+          <div className="flex flex-row my-4">
+            <span>Sort by: </span>
+            <select
+              name="sort-criteria"
+              defaultValue={currSortCriteriaId}
+              onChange={selectSortCriteria}
+            >
+              {
+                Object.entries(sortingCriteria).map(([id, { label }]) => (
+                  <option value={id}>{label}</option>
+                ))
+              }
+            </select>
+          </div>
+
+          {/** Choose sorting order **/}
+          <div className="flex flex-row my-4">
+            <span>Sort Order: </span>
+            <Button
+              onClick={toggleSortOrder}
+              className="ml-2 bg-blue-400"
+            >
+              {sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+            </Button>
+          </div>
           <ul id="table-list">
-            {(tables as TableViewProps[]).map(table => (
+            {tablesSorted.map(table => (
               <li key={table.id}>
                 <TableCard {...table} />
               </li>
