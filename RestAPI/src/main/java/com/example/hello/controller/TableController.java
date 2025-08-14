@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.Collection;
 import java.util.stream.Collectors;
+import java.time.ZonedDateTime;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
@@ -331,12 +332,13 @@ public class TableController {
       }
 
       String                username = (String) uname;
-      Optional<UserEntity>  user = this.userRepository.findByUsername(username);
+      Optional<UserEntity>  userOpt = this.userRepository.findByUsername(username);
 
-      if (! user.isPresent()) {
+      if (! userOpt.isPresent()) {
         return new ResponseEntity(HttpStatus.UNAUTHORIZED);
       } else {
-        TableEntity table = new TableEntity(user.get(), data.name, data.width, data.height);
+        UserEntity  user = userOpt.get();
+        TableEntity table = new TableEntity(user, data.name, ZonedDateTime.now(), data.width, data.height);
         TableEntity out = this.tableRepository.save(table);
 
         for (int i_row = 0; i_row < table.getHeight(); ++i_row) {
