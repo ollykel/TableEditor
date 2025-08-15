@@ -1,6 +1,9 @@
-
-
+// === WebSocketProtocol =======================================================
+//
 // Define the types for incoming and outgoing messages
+//
+// =============================================================================
+
 export interface TableCellData {
   text: string;
   owner_id?: number;
@@ -31,52 +34,92 @@ export interface DiffNone {
 
 export type StrDiff = DiffInsert | DiffReplace | DiffDelete;
 
-export interface MessageInit {
+// === Server-to-Client messages ===============================================
+export interface ServerMessageInit {
   type: "init";
   client_id: number;
   table: TableCellData[][];
 };
 
-export interface MessageInsert extends DiffInsert {
+export interface ServerMessageInsert extends DiffInsert {
   client_id: number;
   cell: [number, number];
 };
 
-export interface MessageDelete extends DiffDelete {
+export interface ServerMessageDelete extends DiffDelete {
   client_id: number;
   cell: [number, number];
 };
 
-export interface MessageReplace extends DiffReplace {
+export interface ServerMessageReplace extends DiffReplace {
   client_id: number;
   cell: [number, number];
 };
 
-export interface MessageInsertRows {
+export interface ServerMessageInsertRows {
   type: "insert_rows";
   client_id: number;
   insertion_index: number;
   num_rows: number;
 }
 
-export interface MessageInsertCols {
+export interface ServerMessageInsertCols {
   type: "insert_cols";
   client_id: number;
   insertion_index: number;
   num_cols: number;
 }
 
-export interface MessageAcquireLock {
+export interface ServerMessageAcquireLock {
   type: "acquire_lock";
   client_id: number;
   cell: [number, number];
 };
 
-export interface MessageReleaseLock {
+export interface ServerMessageReleaseLock {
   type: "release_lock";
   cell: [number, number];
 };
 
-export type ClientMutateMessage = MessageInsert | MessageDelete | MessageReplace | MessageAcquireLock;
-export type MutateMessage = ClientMutateMessage | MessageReleaseLock;
-export type Message = MessageInit | MutateMessage | MessageInsertRows | MessageInsertCols;
+export type ServerStringMutateMessage = ServerMessageInsert | ServerMessageDelete | ServerMessageReplace | ServerMessageAcquireLock;
+export type ServerCellMutateMessage = ServerStringMutateMessage | ServerMessageReleaseLock;
+export type ServerMessage = ServerMessageInit | ServerCellMutateMessage | ServerMessageInsertRows | ServerMessageInsertCols;
+
+// === Client-to-Server messages ===============================================
+export interface ClientMessageInsert extends DiffInsert {
+  cell: [number, number];
+};
+
+export interface ClientMessageDelete extends DiffDelete {
+  cell: [number, number];
+};
+
+export interface ClientMessageReplace extends DiffReplace {
+  cell: [number, number];
+};
+
+export interface ClientMessageInsertRows {
+  type: "insert_rows";
+  insertion_index: number;
+  num_rows: number;
+}
+
+export interface ClientMessageInsertCols {
+  type: "insert_cols";
+  insertion_index: number;
+  num_cols: number;
+}
+
+export interface ClientMessageAcquireLock {
+  type: "acquire_lock";
+  cell: [number, number];
+};
+
+export interface ClientMessageReleaseLock {
+  type: "release_lock";
+  cell: [number, number];
+};
+
+export type ClientStringMutateMessage = ClientMessageInsert | ClientMessageDelete | ClientMessageReplace | ClientMessageAcquireLock;
+export type ClientCellMutateMessage = ClientStringMutateMessage | ClientMessageReleaseLock;
+export type ClientMessage = ClientCellMutateMessage | ClientMessageInsertRows | ClientMessageInsertCols;
