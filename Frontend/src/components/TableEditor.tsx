@@ -17,16 +17,15 @@ import type TableProps from '@/types/TableProps';
 
 import type {
   TableCellData,
-  DiffInsert,
-  DiffReplace,
-  DiffDelete,
-  DiffNone,
   StrDiff,
-  MutateMessage,
-  Message
+  ServerCellMutateMessage,
+  ServerMessage,
+  ClientStringMutateMessage,
+  ClientMessageInsertRows,
+  ClientMessageInsertCols
 } from '@/types/WebSocketProtocol';
 
-const diffStrings = (olds: string, news: string): DiffInsert | DiffReplace | DiffDelete | DiffNone => {
+const diffStrings = (olds: string, news: string): StrDiff => {
   if (olds === news) return { type: "none" };
 
   // Find common prefix
@@ -101,7 +100,7 @@ export const TableEditor: React.FC<TableEditorProps> = (props: TableEditorProps)
 
   console.log('Client ID:', clientId);
 
-  const mutateCell = (msg: MutateMessage): void => {
+  const mutateCell = (msg: ServerCellMutateMessage): void => {
     const [row, col] = msg.cell;
 
     setTable((oldTable) => {
@@ -149,7 +148,8 @@ export const TableEditor: React.FC<TableEditorProps> = (props: TableEditorProps)
   const handleMessage = (event: any): void => {
     try {
       const clientId = clientIdRef.current;
-      const msg = JSON.parse(event.data) as Message;
+      const msg = JSON.parse(event.data) as ServerMessage;
+
       console.log('Received:', msg);
       if (msg.type === 'init') {
         if (Array.isArray(msg.table)) {
@@ -158,7 +158,6 @@ export const TableEditor: React.FC<TableEditorProps> = (props: TableEditorProps)
           setTable(() => msg.table);
         }
       } else if (msg.type === 'insert_rows') {
-        // TODO: row insertion logic here
         const { insertion_index: insertionIndex, num_rows: numRows} =  msg;
 
         // Insert rows with blank text
@@ -174,7 +173,6 @@ export const TableEditor: React.FC<TableEditorProps> = (props: TableEditorProps)
           ];
         });
       } else if (msg.type === 'insert_cols') {
-        // TODO: row insertion logic here
         const { insertion_index: insertionIndex, num_cols: numCols } =  msg;
 
         // Insert cols with blank text
@@ -208,7 +206,9 @@ export const TableEditor: React.FC<TableEditorProps> = (props: TableEditorProps)
       const diff = diffStrings(text, newText);
 
       if (socket && diff.type !== 'none') {
-        const message = { client_id: 0, cell: [row, col], ...diff};
+        const message: ClientStringMutateMessage = ({
+          cell: [row, col], ...diff
+        });
         socket.send(JSON.stringify(message));
         setText(row, col, newText);
       }
@@ -227,25 +227,27 @@ export const TableEditor: React.FC<TableEditorProps> = (props: TableEditorProps)
 
   const makeInsertRow = (iRow: number) => () => {
     if (socket) {
-      console.log(`Inserting row at ${iRow}`);
-      socket.send(JSON.stringify({
+      const insertRowsMsg : ClientMessageInsertRows = ({
         type: "insert_rows",
-        client_id: 0,
         insertion_index: iRow,
         num_rows: 1
-      }));
+      });
+
+      console.log(`Inserting row at ${iRow}`);
+      socket.send(JSON.stringify(insertRowsMsg));
     }
   };
 
   const makeInsertCol = (iCol: number) => () => {
     if (socket) {
-      console.log(`Inserting col at ${iCol}`);
-      socket.send(JSON.stringify({
+      const insertColsMsg : ClientMessageInsertCols = ({
         type: "insert_cols",
-        client_id: 0,
         insertion_index: iCol,
         num_cols: 1
-      }));
+      });
+
+      console.log(`Inserting col at ${iCol}`);
+      socket.send(JSON.stringify(insertColsMsg));
     }
   };
 
