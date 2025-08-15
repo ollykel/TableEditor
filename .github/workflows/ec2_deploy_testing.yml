@@ -60,8 +60,9 @@ jobs:
           echo \"${ENV_FILE}\" > .env
           echo \"${SSL_KEY}\" > ReverseProxy/key.pem
           echo \"${SSL_CERT}\" > ReverseProxy/cert.pem
+          docker compose build
           docker compose down
-          docker compose up --build --detach
+          docker compose up --detach
           "
           chmod 600 github-ec2.pem
           shred -u github-ec2.pem
