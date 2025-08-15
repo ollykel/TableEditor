@@ -22,8 +22,8 @@ import type {
   DiffDelete,
   DiffNone,
   StrDiff,
-  MutateMessage,
-  Message
+  ServerCellMutateMessage,
+  ServerMessage
 } from '@/types/WebSocketProtocol';
 
 const diffStrings = (olds: string, news: string): DiffInsert | DiffReplace | DiffDelete | DiffNone => {
@@ -101,7 +101,7 @@ export const TableEditor: React.FC<TableEditorProps> = (props: TableEditorProps)
 
   console.log('Client ID:', clientId);
 
-  const mutateCell = (msg: MutateMessage): void => {
+  const mutateCell = (msg: ServerCellMutateMessage): void => {
     const [row, col] = msg.cell;
 
     setTable((oldTable) => {
@@ -149,7 +149,8 @@ export const TableEditor: React.FC<TableEditorProps> = (props: TableEditorProps)
   const handleMessage = (event: any): void => {
     try {
       const clientId = clientIdRef.current;
-      const msg = JSON.parse(event.data) as Message;
+      const msg = JSON.parse(event.data) as ServerMessage;
+
       console.log('Received:', msg);
       if (msg.type === 'init') {
         if (Array.isArray(msg.table)) {
