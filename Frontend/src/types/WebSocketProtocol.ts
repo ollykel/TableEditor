@@ -110,16 +110,6 @@ export interface ClientMessageInsertCols {
   num_cols: number;
 }
 
-export interface ClientMessageAcquireLock {
-  type: "acquire_lock";
-  cell: [number, number];
-};
-
-export interface ClientMessageReleaseLock {
-  type: "release_lock";
-  cell: [number, number];
-};
-
-export type ClientStringMutateMessage = ClientMessageInsert | ClientMessageDelete | ClientMessageReplace | ClientMessageAcquireLock;
-export type ClientCellMutateMessage = ClientStringMutateMessage | ClientMessageReleaseLock;
+export type ClientStringMutateMessage = ClientMessageInsert | ClientMessageDelete | ClientMessageReplace;
+export type ClientCellMutateMessage = ClientStringMutateMessage;
 export type ClientMessage = ClientCellMutateMessage | ClientMessageInsertRows | ClientMessageInsertCols;
