@@ -20,7 +20,8 @@ services:
     # Provides a RESTful API for interfacing with the database.
     build: RestAPI
     depends_on:
-      - database
+      database:
+        condition: service_healthy
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -41,7 +42,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     depends_on:
-      - database
+      database:
+        condition: service_healthy
   
   frontend:
     # Frontend code to serve to client.
