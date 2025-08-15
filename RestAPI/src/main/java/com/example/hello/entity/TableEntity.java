@@ -63,9 +63,16 @@ public class TableEntity {
           this.timeCreated = table.getTimeCreated();
           this.width = table.getWidth();
           this.height = table.getHeight();
-          this.sharedUsers = table.getSharedUsers().stream()
-            .map(user -> user.toPublicView())
-            .collect(Collectors.toList());
+
+          Set<UserEntity> sharedUsers = table.getSharedUsers();
+
+          if (sharedUsers != null) {
+            this.sharedUsers = sharedUsers.stream()
+              .map(user -> user.toPublicView())
+              .collect(Collectors.toList());
+          } else {
+            this.sharedUsers = List.of();
+          }
         }
 
         public Long getId() { return this.id; }
