@@ -32,7 +32,7 @@ export interface DiffNone {
   type: "none";
 };
 
-export type StrDiff = DiffInsert | DiffReplace | DiffDelete;
+export type StrDiff = DiffInsert | DiffReplace | DiffDelete | DiffNone;
 
 // === Server-to-Client messages ===============================================
 export interface ServerMessageInit {
