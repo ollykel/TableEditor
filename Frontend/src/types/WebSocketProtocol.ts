@@ -35,6 +35,20 @@ export interface DiffNone {
 export type StrDiff = DiffInsert | DiffReplace | DiffDelete | DiffNone;
 
 // === Server-to-Client messages ===============================================
+export interface ServerMessageAuthResponseSuccess {
+  type: 'auth_response';
+  success: true;
+};
+
+export interface ServerMessageAuthResponseFailure {
+  type: 'auth_response';
+  success: false;
+  reason: string;
+};
+
+type ServerMessageAuthResponse = ServerMessageAuthResponseSuccess
+  | ServerMessageAuthResponseFailure;
+
 export interface ServerMessageInit {
   type: "init";
   client_id: number;
@@ -83,9 +97,18 @@ export interface ServerMessageReleaseLock {
 
 export type ServerStringMutateMessage = ServerMessageInsert | ServerMessageDelete | ServerMessageReplace | ServerMessageAcquireLock;
 export type ServerCellMutateMessage = ServerStringMutateMessage | ServerMessageReleaseLock;
-export type ServerMessage = ServerMessageInit | ServerCellMutateMessage | ServerMessageInsertRows | ServerMessageInsertCols;
+export type ServerMessage = ServerMessageAuthResponse
+  | ServerMessageInit
+  | ServerCellMutateMessage
+  | ServerMessageInsertRows
+  | ServerMessageInsertCols;
 
 // === Client-to-Server messages ===============================================
+export interface ClientMessageAuthRequest {
+  type: 'auth_request';
+  jwt: string;
+}
+
 export interface ClientMessageInsert extends DiffInsert {
   cell: [number, number];
 };
@@ -102,14 +125,17 @@ export interface ClientMessageInsertRows {
   type: "insert_rows";
   insertion_index: number;
   num_rows: number;
-}
+};
 
 export interface ClientMessageInsertCols {
   type: "insert_cols";
   insertion_index: number;
   num_cols: number;
-}
+};
 
 export type ClientStringMutateMessage = ClientMessageInsert | ClientMessageDelete | ClientMessageReplace;
 export type ClientCellMutateMessage = ClientStringMutateMessage;
-export type ClientMessage = ClientCellMutateMessage | ClientMessageInsertRows | ClientMessageInsertCols;
+export type ClientMessage = ClientMessageAuthRequest
+  | ClientCellMutateMessage
+  | ClientMessageInsertRows
+  | ClientMessageInsertCols;

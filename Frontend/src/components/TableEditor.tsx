@@ -151,7 +151,12 @@ export const TableEditor: React.FC<TableEditorProps> = (props: TableEditorProps)
       const msg = JSON.parse(event.data) as ServerMessage;
 
       console.log('Received:', msg);
-      if (msg.type === 'init') {
+
+      if (msg.type === 'auth_response') {
+        if (!msg.success) {
+          alert(`Authentication failed: ${msg.reason}`);
+        }
+      } else if (msg.type === 'init') {
         if (Array.isArray(msg.table)) {
           console.log('RECEIVED INIT');
           setClientId(() => msg.client_id);
