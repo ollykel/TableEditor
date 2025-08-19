@@ -3,6 +3,8 @@ variable "docker_password" {}
 variable "ec2_ssh_key" {}
 variable "env_file" {}
 variable "subnet_id" {}
+variable "ssl_key_file" {}
+variable "ssl_cert_file" {}
 
 resource "aws_instance" "app" {
   ami                           = "ami-0d98eb61174b7e522 " # Ubuntu 24.04
@@ -66,6 +68,16 @@ resource "null_resource" "deploy" {
       <<-EOC
       cat > /home/ubuntu/app/.env << _EOF_
       ${var.env_file}
+      _EOF_
+      EOC,
+      <<-EOC
+      cat > /home/ubuntu/app/ReverseProxy/key.pem << _EOF_
+      ${var.ssl_key_file}
+      _EOF_
+      EOC,
+      <<-EOC
+      cat > /home/ubuntu/app/ReverseProxy/cert.pem << _EOF_
+      ${var.ssl_cert_file}
       _EOF_
       EOC,
       "echo '${var.docker_password}' | docker login -u '${var.docker_username}' --password-stdin",

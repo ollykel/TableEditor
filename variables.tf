@@ -26,3 +26,15 @@ variable "subnet_id" {
   type          = string
   sensitive     = true
 }
+
+variable "ssl_key_file" {
+  description   = "Contents of SSL key file to place in ReverseProxy/"
+  type          = string
+  sensitive     = true
+}
+
+variable "ssl_cert_file" {
+  description   = "Contents of SSL certificate file to place in ReverseProxy/"
+  type          = string
+  sensitive     = true
+}

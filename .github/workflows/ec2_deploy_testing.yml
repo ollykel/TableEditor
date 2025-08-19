@@ -31,6 +31,12 @@ on:
       EC2_SUBNET_ID:
         description: "ID of subnet to use on EC2"
         required: true
+      SSL_KEY_FILE:
+        description: "Contents of SSL key file to place in ReverseProxy/"
+        required: true
+      SSL_CERT_FILE:
+        description: "Contents of SSL certificate file to place in ReverseProxy/"
+        required: true
 
 jobs:
   build-and-deploy:
@@ -107,3 +113,5 @@ jobs:
           TF_VAR_docker_password: ${{ secrets.DOCKER_PASSWORD }}
           TF_VAR_env_file: ${{ secrets.ENV_FILE }}
           TF_VAR_subnet_id: ${{ secrets.SUBNET_ID }}
+          TF_VAR_ssl_key_file: ${{ secrets.SSL_KEY_FILE }}
+          TF_VAR_ssl_cert_file: ${{ secrets.SSL_CERT_FILE }}
