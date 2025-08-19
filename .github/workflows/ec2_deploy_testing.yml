@@ -13,6 +13,9 @@ on:
       DOCKER_PASSWORD:
         description: "Docker hub password"
         required: true
+      DOCKER_REPOSITORY:
+        description: "Root name of docker registry repositories"
+        required: true
       AWS_ACCESS_KEY_ID:
         description: "AWS access key ID"
         required: true
@@ -70,6 +73,9 @@ jobs:
 
       # Push images to registry
       - name: Push Docker images
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_REPOSITORY: ${{ secrets.DOCKER_REPOSITORY }}
         run: docker compose push
 
       # Set up Terraform
