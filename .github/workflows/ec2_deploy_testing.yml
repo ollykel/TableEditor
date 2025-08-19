@@ -1,68 +1,101 @@
-# Automatically rebuilds and restarts the EC2 instance when a push to the
-# production branch occurs.
-# Derived from https://www.baeldung.com/ops/github-actions-deploy-ec2
+name: EC2 Test Deployment
+
 on:
   push:
     branches:
       - testing
+
   workflow_call:
     secrets:
-      EC2_TEST_PRIVATE_KEY:
-        description: "The key to use to ssh into the ec2 instance"
+      DOCKER_USERNAME:
+        description: "Docker hub username"
         required: true
-      EC2_TEST_USER:
-        description: "User on the EC2 instance"
+      DOCKER_PASSWORD:
+        description: "Docker hub password"
         required: true
-      EC2_TEST_HOST:
-        description: "Hostname of the EC2 instance"
+      AWS_ACCESS_KEY_ID:
+        description: "AWS access key ID"
         required: true
-      EC2_TEST_REPO_URL:
-        description: "URL at which the upstream repository is located"
+      AWS_SECRET_ACCESS_KEY:
+        description: "AWS secret access key"
         required: true
-      EC2_TEST_REPO_DIR:
-        description: "Location of the git repository on the EC2 instance"
+      EC2_SSH_KEY:
+        description: "SSH key for accessing EC2"
         required: true
-      EC2_TEST_ENV_FILE:
-        description: ".env file to be placed in .env"
+      ENV_FILE:
+        description: "Contents of the repository .env file"
         required: true
-      EC2_TEST_SSL_KEY:
-        description: "Private SSL key to be placed in ReverseProxy/key.pem"
+      EC2_SUBNET_ID:
+        descrption: "ID of subnet to use on EC2"
         required: true
-      EC2_TEST_SSL_CERT:
-        description: "Certificate to be placed in ReverseProxy/cert.pem"
-        required: true
+
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
+  build-and-deploy:
+    runs-on: ubuntu-24.04
+
     steps:
-      - name: Deploy to EC2
+      # Check out the repo
+      - uses: actions/checkout@v5
+
+      # Set up Docker Buildx
+      - name: Set up Docker Buildx
+        run: docker buildx create --use
+
+      # Cache Docker layers locally
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.docker-cache
+          key: docker-cache-${{ runner.os }}-${{ github.sha }}
+          restore-keys: docker-cache-${{ runner.os }}-
+
+      # Log in to Docker registry
+      - name: Docker Login
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # Build Docker images from docker-compose.yml
+      - name: Build Docker images
         env:
-          PRIVATE_KEY: ${{ secrets.EC2_TEST_PRIVATE_KEY }}
-          HOST: ${{ secrets.EC2_TEST_HOST }}
-          USER: ${{ secrets.EC2_TEST_USER }}
-          REPO_URL: ${{ secrets.EC2_TEST_REPO_URL }}
-          REPO_DIR: ${{ secrets.EC2_TEST_REPO_DIR }}
-          ENV_FILE: ${{ secrets.EC2_TEST_ENV_FILE }}
-          SSL_KEY: ${{ secrets.EC2_TEST_SSL_KEY }}
-          SSL_CERT: ${{ secrets.EC2_TEST_SSL_CERT }}
-          TARGET_BRANCH: testing
+          DOCKER_BUILDKIT: 1
+          COMPOSE_DOCKER_CLI_BUILD: 1
         run: |
-          echo "${PRIVATE_KEY}" > github-ec2.pem && chmod 400 github-ec2.pem
-          ssh -o StrictHostKeyChecking=no -i github-ec2.pem "${USER}@${HOST}" "
-          if [[ ! -d \"${REPO_DIR}/.git\" ]]
-          then
-            git clone \"${REPO_URL}\" \"${REPO_DIR}\"
-          fi
-          cd \"${REPO_DIR}\"
-          git fetch
-          git checkout \"${TARGET_BRANCH}\"
-          git pull
-          echo \"${ENV_FILE}\" > .env
-          echo \"${SSL_KEY}\" > ReverseProxy/key.pem
-          echo \"${SSL_CERT}\" > ReverseProxy/cert.pem
-          docker compose build
-          docker compose down
-          docker compose up --detach
-          "
-          chmod 600 github-ec2.pem
-          shred -u github-ec2.pem
+          # Ensure cache directory exists
+          mkdir -p /tmp/.docker-cache
+
+          # Build all services with cache
+          docker compose build --progress=plain --build-arg BUILDKIT_INLINE_CACHE=1
+
+      # Push images to registry
+      - name: Push Docker images
+        run: docker compose push
+
+      # Set up Terraform
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.5
+
+      # Configure AWS credentials
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+
+      # Terraform Init
+      - name: Terraform Init
+        run: terraform init
+
+      # Terraform Apply
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
+        env:
+          TF_VAR_ec2_ssh_key: ${{ secrets.EC2_SSH_KEY }}
+          TF_VAR_docker_username: ${{ secrets.DOCKER_USERNAME }}
+          TF_VAR_docker_password: ${{ secrets.DOCKER_PASSWORD }}
+          TF_VAR_env_file: ${{ secrets.ENV_FILE }}
+          TF_VAR_subnet_id: ${{ secrets.SUBNET_ID }}
