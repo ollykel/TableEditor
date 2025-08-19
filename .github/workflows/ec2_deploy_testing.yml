@@ -3,7 +3,7 @@ name: EC2 Test Deployment
 on:
   push:
     branches:
-      - testing
+      - feat/container-registry-ci-cd
 
   workflow_call:
     secrets:
