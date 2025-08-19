@@ -26,7 +26,7 @@ on:
         description: "Contents of the repository .env file"
         required: true
       EC2_SUBNET_ID:
-        descrption: "ID of subnet to use on EC2"
+        description: "ID of subnet to use on EC2"
         required: true
 
 jobs:
