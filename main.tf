@@ -28,7 +28,6 @@ resource "aws_instance" "app" {
 # Elastic IP Address
 resource "aws_eip" "app_ip" {
   instance = aws_instance.app.id
-  vpc      = true
 
   tags = {
     Name = "table-editor-ip"
