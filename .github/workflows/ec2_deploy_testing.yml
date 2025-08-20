@@ -39,8 +39,8 @@ on:
         required: true
 
 jobs:
-  build:
-    # Build docker services locally
+  build_and_push:
+    # Build docker services locally and publish to Docker registry
     runs-on: ubuntu-24.04
 
     steps:
@@ -73,12 +73,6 @@ jobs:
           # Build all services with cache
           docker compose build --progress=plain --build-arg BUILDKIT_INLINE_CACHE=1
 
-  push:
-    # Push docker services to registry
-    runs-on: ubuntu-24.04
-    needs: build
-
-    steps:
       # Log in to Docker registry
       - name: Docker Login
         uses: docker/login-action@v3
@@ -96,7 +90,7 @@ jobs:
   deploy:
     # Deploy to EC2 instance using Terraform
     runs-on: ubuntu-24.04
-    needs: push
+    needs: build_and_push
 
     steps:
       # Set up Terraform
