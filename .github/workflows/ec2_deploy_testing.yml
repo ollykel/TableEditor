@@ -93,6 +93,9 @@ jobs:
     needs: build_and_push
 
     steps:
+      # Check out the repo
+      - uses: actions/checkout@v5
+
       # Set up Terraform
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
