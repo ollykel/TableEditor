@@ -56,7 +56,8 @@ resource "null_resource" "deploy" {
   }
 
   provisioner "remote-exec" {
-    inline = <<-EOC
+    inline = [
+      <<-EOC
       cat > /home/ubuntu/app/.env << _EOF_
       ${var.env_file}
       _EOF_
@@ -68,7 +69,8 @@ resource "null_resource" "deploy" {
       _EOF_
       echo '${var.docker_password}' | docker login -u '${var.docker_username}' --password-stdin
       cd /home/ubuntu/app && docker compose pull && docker compose up -d
-    EOC
+      EOC
+    ]
   }
 }
 
