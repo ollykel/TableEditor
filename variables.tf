@@ -4,6 +4,12 @@ variable "ec2_ssh_key" {
   sensitive   = true
 }
 
+variable "ec2_key_pair_name" {
+  description = "Name of key pair for connecting to EC2"
+  type        = string
+  sensitive   = true
+}
+
 variable "docker_username" {
   description = "Docker registry username"
   type        = string

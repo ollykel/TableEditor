@@ -1,7 +1,7 @@
 resource "aws_instance" "app" {
   ami                           = "ami-0d98eb61174b7e522" # Ubuntu 24.04
   instance_type                 = "t3.micro"
-  key_name                      = "table-editor-default"
+  key_name                      = var.ec2_key_pair_name
   subnet_id                     = var.subnet_id
   associate_public_ip_address   = false
 

@@ -25,6 +25,9 @@ on:
       EC2_SSH_KEY:
         description: "SSH key for accessing EC2"
         required: true
+      EC2_KEY_PAIR_NAME:
+        description: "Name of key pair for accessing EC2"
+        required: true
       ENV_FILE:
         description: "Contents of the repository .env file"
         required: true
@@ -125,3 +128,4 @@ jobs:
           TF_VAR_subnet_id: ${{ secrets.SUBNET_ID }}
           TF_VAR_ssl_key_file: ${{ secrets.SSL_KEY_FILE }}
           TF_VAR_ssl_cert_file: ${{ secrets.SSL_CERT_FILE }}
+          TF_VAR_ec2_key_pair_name: ${{ secrets.EC2_KEY_PAIR_NAME }}
