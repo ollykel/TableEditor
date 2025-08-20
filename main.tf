@@ -1,13 +1,5 @@
-variable "docker_username" {}
-variable "docker_password" {}
-variable "ec2_ssh_key" {}
-variable "env_file" {}
-variable "subnet_id" {}
-variable "ssl_key_file" {}
-variable "ssl_cert_file" {}
-
 resource "aws_instance" "app" {
-  ami                           = "ami-0d98eb61174b7e522 " # Ubuntu 24.04
+  ami                           = "ami-0d98eb61174b7e522" # Ubuntu 24.04
   instance_type                 = "t3.micro"
   key_name                      = "table-editor-default"
   subnet_id                     = var.subnet_id
@@ -89,3 +81,4 @@ resource "null_resource" "deploy" {
 output "app_ip" {
   value = aws_eip.app_ip.public_ip
 }
+
