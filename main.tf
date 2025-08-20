@@ -56,25 +56,19 @@ resource "null_resource" "deploy" {
   }
 
   provisioner "remote-exec" {
-    inline = [
-      <<-EOC
+    inline = <<-EOC
       cat > /home/ubuntu/app/.env << _EOF_
       ${var.env_file}
       _EOF_
-      EOC,
-      <<-EOC
       cat > /home/ubuntu/app/ReverseProxy/key.pem << _EOF_
       ${var.ssl_key_file}
       _EOF_
-      EOC,
-      <<-EOC
       cat > /home/ubuntu/app/ReverseProxy/cert.pem << _EOF_
       ${var.ssl_cert_file}
       _EOF_
-      EOC,
-      "echo '${var.docker_password}' | docker login -u '${var.docker_username}' --password-stdin",
-      "cd /home/ubuntu/app && docker compose pull && docker compose up -d"
-    ]
+      echo '${var.docker_password}' | docker login -u '${var.docker_username}' --password-stdin
+      cd /home/ubuntu/app && docker compose pull && docker compose up -d
+    EOC
   }
 }
 
