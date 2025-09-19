@@ -11,6 +11,13 @@ services:
     environment:
       TABLE_EDITOR_FRONTEND_PORT: ${TABLE_EDITOR_FRONTEND_PORT-3000}
       TABLE_EDITOR_WS_PORT: ${TABLE_EDITOR_WS_PORT-4000}
+    volumes:
+      - type: bind
+        source: ReverseProxy/key.pem
+        target: /app/key.pem
+      - type: bind
+        source: ReverseProxy/cert.pem
+        target: /app/cert.pem
     depends_on:
       - frontend
       - rest_api

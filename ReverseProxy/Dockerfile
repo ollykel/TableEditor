@@ -5,8 +5,6 @@ COPY nginx.conf /etc/nginx/nginx.conf
 
 # Copy ssl files
 WORKDIR /app
-COPY cert.pem .
-COPY key.pem .
 
 # Expose port 8080 and start nginx
 EXPOSE 8080
